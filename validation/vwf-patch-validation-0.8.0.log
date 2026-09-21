@@ -1,0 +1,8 @@
+validated profile: rgo-uljm05752-russian-vwf-v1
+patch words: 133
+full output SHA-256: 0a2ce9212c3335e17fad28d457b0caf7f25bc1b046707e0da994ee8437f7244f
+idempotence: passed
+partial completion: passed
+adjusted script table: passed
+expanded script heap: passed (2457600 bytes)
+tamper rejection: passed

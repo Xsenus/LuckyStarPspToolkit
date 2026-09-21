@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "game": "NetIdolMeister",
+  "verified": false,
+  "scriptJumpTableOffset": 2048,
+  "scriptFileAlignment": 4096,
+  "ebootScriptSizeTableOffset": 1360998,
+  "scriptIdRange": [0, 594],
+  "note": "Requires EBOOT.BIN, sc.cpk and lt.bin from the customer's second game before patching is enabled."
+}

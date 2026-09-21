@@ -1,0 +1,9 @@
+PASS text files are UTF-8/LF and policy-clean
+PASS JSON and MSBuild XML files parse
+PASS projects and canonical solution are consistent
+PASS C# delimiter balance passes token-aware scan
+PASS source has no sidecar, network, process, or NuGet dependency
+PASS version metadata is centrally consistent
+PASS revision profile matches independently validated customer data
+PASS PRX tag and AES constants match the independent oracle
+PASS font pipeline source and fixture contracts are consistent

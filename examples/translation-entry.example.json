@@ -1,0 +1,9 @@
+{
+  "index": 12,
+  "id": 12,
+  "sourceSpeaker": "SOURCE SPEAKER",
+  "translationSpeaker": "Персонаж",
+  "sourceMessage": "SOURCE MESSAGE",
+  "translationMessage": "Тестовая русская реплика.",
+  "messageTerminator": "0xFFFB"
+}

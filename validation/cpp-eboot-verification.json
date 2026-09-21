@@ -1,0 +1,42 @@
+{
+  "source_was_encrypted": true,
+  "decryption_succeeded": true,
+  "is_elf": true,
+  "exact_encrypted_revision": true,
+  "exact_decrypted_revision": true,
+  "patch_points_compatible": true,
+  "encrypted_sha256": "4a22c50c0a6ad6249dd1d9ab015d559b19b4acd79daf892a6f29a58648b834f0",
+  "decrypted_sha256": "3e6c1c2f7136a69cecda4f39835c3454b739e23e89e862fe17462cdf915581d8",
+  "message": "Exact verified ULJM05752 executable revision",
+  "referenced_assets": ["sc.cpk", "lt.bin", "union.cpk", "pr.bin"],
+  "script_slots": [
+    {"id": 0, "blocks_2k": 1132, "cumulative_blocks_2k": 1132, "size_bytes": 2318336},
+    {"id": 1, "blocks_2k": 110, "cumulative_blocks_2k": 1242, "size_bytes": 225280},
+    {"id": 2, "blocks_2k": 62, "cumulative_blocks_2k": 1304, "size_bytes": 126976},
+    {"id": 3, "blocks_2k": 62, "cumulative_blocks_2k": 1366, "size_bytes": 126976},
+    {"id": 4, "blocks_2k": 62, "cumulative_blocks_2k": 1428, "size_bytes": 126976},
+    {"id": 5, "blocks_2k": 62, "cumulative_blocks_2k": 1490, "size_bytes": 126976},
+    {"id": 6, "blocks_2k": 62, "cumulative_blocks_2k": 1552, "size_bytes": 126976},
+    {"id": 7, "blocks_2k": 62, "cumulative_blocks_2k": 1614, "size_bytes": 126976},
+    {"id": 8, "blocks_2k": 62, "cumulative_blocks_2k": 1676, "size_bytes": 126976},
+    {"id": 9, "blocks_2k": 62, "cumulative_blocks_2k": 1738, "size_bytes": 126976},
+    {"id": 10, "blocks_2k": 62, "cumulative_blocks_2k": 1800, "size_bytes": 126976}
+  ],
+  "patch_points": [
+    {"offset": "0x00003D24", "expected": "0x24840010", "actual": "0x24840010", "matches": true},
+    {"offset": "0x00004D98", "expected": "0x24A5007D", "actual": "0x24A5007D", "matches": true},
+    {"offset": "0x00007868", "expected": "0x34040012", "actual": "0x34040012", "matches": true},
+    {"offset": "0x0000786C", "expected": "0x00932023", "actual": "0x00932023", "matches": true},
+    {"offset": "0x00007940", "expected": "0x10800014", "actual": "0x10800014", "matches": true},
+    {"offset": "0x00007A9C", "expected": "0x2508FFFE", "actual": "0x2508FFFE", "matches": true},
+    {"offset": "0x00007B4C", "expected": "0x2665FFFE", "actual": "0x2665FFFE", "matches": true},
+    {"offset": "0x00007C38", "expected": "0x2508FFFE", "actual": "0x2508FFFE", "matches": true},
+    {"offset": "0x00025CD8", "expected": "0x00A04825", "actual": "0x00A04825", "matches": true},
+    {"offset": "0x00025DE0", "expected": "0x3128FFFF", "actual": "0x3128FFFF", "matches": true},
+    {"offset": "0x000362F4", "expected": "0x00A03025", "actual": "0x00A03025", "matches": true},
+    {"offset": "0x000366E4", "expected": "0x26240010", "actual": "0x26240010", "matches": true},
+    {"offset": "0x0003A648", "expected": "0x00E04025", "actual": "0x00E04025", "matches": true},
+    {"offset": "0x0003A93C", "expected": "0x27BDFFD0", "actual": "0x27BDFFD0", "matches": true},
+    {"offset": "0x0003AC84", "expected": "0x11400012", "actual": "0x11400012", "matches": true}
+  ]
+}

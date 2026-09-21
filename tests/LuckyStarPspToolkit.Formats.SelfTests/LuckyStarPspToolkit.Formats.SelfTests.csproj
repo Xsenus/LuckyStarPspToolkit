@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>LuckyStarPspToolkit.Formats.SelfTests</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/LuckyStarPspToolkit.Formats/LuckyStarPspToolkit.Formats.csproj" />
+    <ProjectReference Include="../../src/LuckyStarPspToolkit.Cli/LuckyStarPspToolkit.Cli.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

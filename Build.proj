@@ -1,0 +1,13 @@
+<Project DefaultTargets="Release">
+  <!-- Explicit entry point; plain solution builds never recursively publish themselves. -->
+  <PropertyGroup>
+    <PythonCommand Condition="'$(PythonCommand)' == ''">python</PythonCommand>
+    <ReleaseRids Condition="'$(ReleaseRids)' == ''">win-x64,linux-x64</ReleaseRids>
+  </PropertyGroup>
+  <Target Name="Release">
+    <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="&quot;$(PythonCommand)&quot; scripts/build_release.py --rids &quot;$(ReleaseRids)&quot;" />
+  </Target>
+  <Target Name="Check">
+    <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="&quot;$(PythonCommand)&quot; scripts/build_release.py --compile-only" />
+  </Target>
+</Project>

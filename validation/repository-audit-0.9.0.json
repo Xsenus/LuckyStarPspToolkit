@@ -1,0 +1,18 @@
+{
+  "schema": "lucky-star-psp.repository-audit.v1",
+  "passed": true,
+  "trackedFileCount": 228,
+  "secretMatchCount": 0,
+  "unverifiedCompiledArtifactCount": 0,
+  "syntheticFixtureCount": 7,
+  "syntheticFixtures": [
+    "tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures/crilayla-extracted.bin",
+    "tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures/iso-replacement-lt.bin",
+    "tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures/iso-replacement-sc.cpk",
+    "tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures/reference-patched.iso",
+    "tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures/reference-script.bin",
+    "tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures/reference.cpk",
+    "tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures/reference.iso"
+  ],
+  "problems": []
+}

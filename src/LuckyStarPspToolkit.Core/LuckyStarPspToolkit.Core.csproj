@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>LuckyStarPspToolkit.Core</AssemblyName>
+    <RootNamespace>LuckyStarPspToolkit</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591;CA5350;CA5351;CA5358</NoWarn>
+  </PropertyGroup>
+</Project>

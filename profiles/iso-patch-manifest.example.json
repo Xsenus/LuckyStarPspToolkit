@@ -1,0 +1,28 @@
+{
+  "schema": "lucky-star-psp.iso-patch-manifest.v1",
+  "expectedSourceSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "replacements": [
+    {
+      "isoPath": "PSP_GAME/SYSDIR/EBOOT.BIN",
+      "sourceFile": "patched/EBOOT.BIN",
+      "expectedOriginalSize": 1470512,
+      "expectedOriginalSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expectedReplacementSize": 0,
+      "expectedReplacementSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "isoPath": "PSP_GAME/USRDIR/DATA/sc.cpk",
+      "sourceFile": "patched/sc.cpk",
+      "expectedOriginalSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expectedReplacementSize": 0,
+      "expectedReplacementSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "isoPath": "PSP_GAME/USRDIR/DATA/lt.bin",
+      "sourceFile": "patched/lt.bin",
+      "expectedOriginalSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expectedReplacementSize": 0,
+      "expectedReplacementSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

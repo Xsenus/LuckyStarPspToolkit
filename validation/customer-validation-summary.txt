@@ -1,0 +1,13 @@
+Lucky Star PSP Toolkit 0.2.0 validation
+
+Static C# source checks: PASS
+Independent customer ZIP validation: PASS
+PRX Type-2 SHA-1: PASS
+KIRK header CMAC: PASS
+KIRK payload CMAC: PASS
+Decrypted ELF matches C++ oracle byte-for-byte: PASS
+Tampered EBOOT rejected: PASS (KIRK payload CMAC failed)
+MIPS patch preconditions: 15/15
+Script slots: 11 (table consistent)
+C# compilation in this container: NOT EXECUTED (no .NET SDK/compiler)
+Real sc.cpk/lt.bin integration: BLOCKED (files not supplied)

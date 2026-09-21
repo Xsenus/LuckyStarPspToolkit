@@ -1,0 +1,5 @@
+PASS font hashes, sizes, and RGO checksums
+PASS glyph map and BDF cover the complete Russian alphabet
+PASS all 66 Russian glyphs change from blank to renderable without losing metadata or unused row bits
+PASS non-target glyph records and non-zero padding are preserved
+PASS independent RGBA atlas and PNG encoding verified

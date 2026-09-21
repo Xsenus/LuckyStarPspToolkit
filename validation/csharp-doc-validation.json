@@ -1,0 +1,15 @@
+{
+  "schema": "lucky-star-psp.csharp-doc-validation.v1",
+  "passed": true,
+  "files": 48,
+  "types": 160,
+  "methods": 506,
+  "publicOrProtectedMethods": 223,
+  "localFunctions": 0,
+  "genericMethods": 9,
+  "genericGeneratedSummaries": 0,
+  "problems": [],
+  "genericSummaryLocations": [],
+  "version": "0.10.0",
+  "mode": "offline-lexical-xml; not compilation"
+}

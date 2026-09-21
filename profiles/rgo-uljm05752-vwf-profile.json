@@ -1,0 +1,1394 @@
+{
+  "schema": "lucky-star-psp.rgo-eboot-vwf-profile.v1",
+  "profileId": "rgo-uljm05752-russian-vwf-v1",
+  "game": "RyououGakuenOutousaiPortable",
+  "discId": "ULJM05752",
+  "input": {
+    "kind": "decrypted-elf32-mips",
+    "size": 1470173,
+    "sha256": "3e6c1c2f7136a69cecda4f39835c3454b739e23e89e862fe17462cdf915581d8"
+  },
+  "fullOutput": {
+    "size": 1470173,
+    "sha256": "0a2ce9212c3335e17fad28d457b0caf7f25bc1b046707e0da994ee8437f7244f"
+  },
+  "scriptSizeTable": {
+    "offset": 1061278,
+    "offsetHex": "0x0010319E",
+    "firstId": 0,
+    "lastIdInclusive": 10,
+    "canonicalBytesHex": "6C046C046E00DA043E0018053E0056053E0094053E00D2053E0010063E004E063E008C063E00CA063E000807"
+  },
+  "scriptHeap": {
+    "luiOffset": 88916,
+    "luiOffsetHex": "0x00015B54",
+    "addiuOffset": 88920,
+    "addiuOffsetHex": "0x00015B58",
+    "originalCapacityBytes": 2318336,
+    "originalCapacityHex": "0x00236000",
+    "originalLuiInstruction": 1006895139,
+    "originalLuiInstructionHex": "0x3C040023",
+    "originalAddiuInstruction": 612655104,
+    "originalAddiuInstructionHex": "0x24846000",
+    "policy": "max-original-or-largest-script"
+  },
+  "groups": [
+    {
+      "id": "vwf-core",
+      "description": "Variable-width glyph rendering core.",
+      "patchCount": 66
+    },
+    {
+      "id": "message-layout",
+      "description": "Message box spacing, overlap, positioning, and automatic-newline adjustments.",
+      "patchCount": 7
+    },
+    {
+      "id": "speaker-layout",
+      "description": "Speaker centering and expanded speaker-name capacity.",
+      "patchCount": 50
+    },
+    {
+      "id": "choice-layout",
+      "description": "Expanded and left-aligned choice text.",
+      "patchCount": 3
+    },
+    {
+      "id": "name-layout",
+      "description": "Player-name spacing and file-select name handling.",
+      "patchCount": 7
+    }
+  ],
+  "patches": [
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-00",
+      "offset": 154840,
+      "offsetHex": "0x00025CD8",
+      "expected": 10504229,
+      "expectedHex": "0x00A04825",
+      "replacement": 1007159680,
+      "replacementHex": "0x3C080980"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-01",
+      "offset": 154844,
+      "offsetHex": "0x00025CDC",
+      "expected": 8398885,
+      "expectedHex": "0x00802825",
+      "replacement": 2366207968,
+      "replacementHex": "0x8D0977E0"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-02",
+      "offset": 154848,
+      "offsetHex": "0x00025CE0",
+      "expected": 406528,
+      "expectedHex": "0x00063400",
+      "replacement": 2902816736,
+      "replacementHex": "0xAD0577E0"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-03",
+      "offset": 154852,
+      "offsetHex": "0x00025CE4",
+      "expected": 467968,
+      "expectedHex": "0x00072400",
+      "replacement": 11094051,
+      "replacementHex": "0x00A94823"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-04",
+      "offset": 154856,
+      "offsetHex": "0x00025CE8",
+      "expected": 408579,
+      "expectedHex": "0x00063C03",
+      "replacement": 757661706,
+      "replacementHex": "0x2D29000A"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-05",
+      "offset": 154860,
+      "offsetHex": "0x00025CEC",
+      "expected": 271363,
+      "expectedHex": "0x00042403",
+      "replacement": 287309828,
+      "replacementHex": "0x11200004"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-06",
+      "offset": 154864,
+      "offsetHex": "0x00025CF0",
+      "expected": 822608127,
+      "expectedHex": "0x310800FF",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-07",
+      "offset": 154868,
+      "offsetHex": "0x00025CF4",
+      "expected": 352321621,
+      "expectedHex": "0x15000055",
+      "replacement": 2365945828,
+      "replacementHex": "0x8D0577E4"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-08",
+      "offset": 154872,
+      "offsetHex": "0x00025CF8",
+      "expected": 18886693,
+      "expectedHex": "0x01203025",
+      "replacement": 268435459,
+      "replacementHex": "0x10000003"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-09",
+      "offset": 154876,
+      "offsetHex": "0x00025CFC",
+      "expected": 15155233,
+      "expectedHex": "0x00E74021",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-10",
+      "offset": 154880,
+      "offsetHex": "0x00025D00",
+      "expected": 15218721,
+      "expectedHex": "0x00E83821",
+      "replacement": 2902816740,
+      "replacementHex": "0xAD0577E4"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-11",
+      "offset": 154884,
+      "offsetHex": "0x00025D04",
+      "expected": 820510719,
+      "expectedHex": "0x30E7FFFF",
+      "replacement": 2701162472,
+      "replacementHex": "0xA10077E8"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-12",
+      "offset": 154888,
+      "offsetHex": "0x00025D08",
+      "expected": 485632,
+      "expectedHex": "0x00076900",
+      "replacement": 281018370,
+      "replacementHex": "0x10C00002"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-13",
+      "offset": 154892,
+      "offsetHex": "0x00025D0C",
+      "expected": 833486847,
+      "expectedHex": "0x31ADFFFF",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-14",
+      "offset": 154896,
+      "offsetHex": "0x00025D10",
+      "expected": 873201664,
+      "expectedHex": "0x340C0000",
+      "replacement": 872808451,
+      "replacementHex": "0x34060003"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-15",
+      "offset": 154900,
+      "offsetHex": "0x00025D14",
+      "expected": 2426994688,
+      "expectedHex": "0x90A90000",
+      "replacement": 2156593242,
+      "replacementHex": "0x808B005A"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-16",
+      "offset": 154904,
+      "offsetHex": "0x00025D18",
+      "expected": 872611840,
+      "expectedHex": "0x34030000",
+      "replacement": 10510369,
+      "replacementHex": "0x00A06021"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-17",
+      "offset": 154908,
+      "offsetHex": "0x00025D1C",
+      "expected": 824770563,
+      "expectedHex": "0x31290003",
+      "replacement": 873267200,
+      "replacementHex": "0x340D0000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-18",
+      "offset": 154912,
+      "offsetHex": "0x00025D20",
+      "expected": 2428633088,
+      "expectedHex": "0x90C20000",
+      "replacement": 873332736,
+      "replacementHex": "0x340E0000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-19",
+      "offset": 154916,
+      "offsetHex": "0x00025D24",
+      "expected": 824770559,
+      "expectedHex": "0x3128FFFF",
+      "replacement": 2433316840,
+      "replacementHex": "0x910977E8"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-20",
+      "offset": 154920,
+      "offsetHex": "0x00025D28",
+      "expected": 617218049,
+      "expectedHex": "0x24CA0001",
+      "replacement": 948355,
+      "replacementHex": "0x000E7883"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-21",
+      "offset": 154924,
+      "offsetHex": "0x00025D2C",
+      "expected": 615186433,
+      "expectedHex": "0x24AB0001",
+      "replacement": 31750177,
+      "replacementHex": "0x01E47821"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-22",
+      "offset": 154928,
+      "offsetHex": "0x00025D30",
+      "expected": 16805925,
+      "expectedHex": "0x01007025",
+      "replacement": 2448359424,
+      "replacementHex": "0x91EF0000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-23",
+      "offset": 154932,
+      "offsetHex": "0x00025D34",
+      "expected": 872939520,
+      "expectedHex": "0x34080000",
+      "replacement": 836239363,
+      "replacementHex": "0x31D80003"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-24",
+      "offset": 154936,
+      "offsetHex": "0x00025D38",
+      "expected": 1438646273,
+      "expectedHex": "0x55C00001",
+      "replacement": 318767109,
+      "replacementHex": "0x13000005"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-25",
+      "offset": 154940,
+      "offsetHex": "0x00025D3C",
+      "expected": 19349537,
+      "expectedHex": "0x01274021",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-26",
+      "offset": 154944,
+      "offsetHex": "0x00025D40",
+      "expected": 4735013,
+      "expectedHex": "0x00484025",
+      "replacement": 1013891,
+      "replacementHex": "0x000F7883"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-27",
+      "offset": 154948,
+      "offsetHex": "0x00025D44",
+      "expected": 2697461760,
+      "expectedHex": "0xA0C80000",
+      "replacement": 655949823,
+      "replacementHex": "0x2718FFFF"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-28",
+      "offset": 154952,
+      "offsetHex": "0x00025D48",
+      "expected": 2426929152,
+      "expectedHex": "0x90A80000",
+      "replacement": 268500987,
+      "replacementHex": "0x1000FFFB"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-29",
+      "offset": 154956,
+      "offsetHex": "0x00025D4C",
+      "expected": 2428633088,
+      "expectedHex": "0x90C20000",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-30",
+      "offset": 154960,
+      "offsetHex": "0x00025D50",
+      "expected": 822673420,
+      "expectedHex": "0x3109000C",
+      "replacement": 837746691,
+      "replacementHex": "0x31EF0003"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-31",
+      "offset": 154964,
+      "offsetHex": "0x00025D54",
+      "expected": 608384,
+      "expectedHex": "0x00094880",
+      "replacement": 299892738,
+      "replacementHex": "0x11E00002"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-32",
+      "offset": 154968,
+      "offsetHex": "0x00025D58",
+      "expected": 872939520,
+      "expectedHex": "0x34080000",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-33",
+      "offset": 154972,
+      "offsetHex": "0x00025D5C",
+      "expected": 824836095,
+      "expectedHex": "0x3129FFFF",
+      "replacement": 31881249,
+      "replacementHex": "0x01E67821"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-34",
+      "offset": 154976,
+      "offsetHex": "0x00025D60",
+      "expected": 1428160513,
+      "expectedHex": "0x55200001",
+      "replacement": 287309826,
+      "replacementHex": "0x11200002"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-35",
+      "offset": 154980,
+      "offsetHex": "0x00025D64",
+      "expected": 19742753,
+      "expectedHex": "0x012D4021",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-36",
+      "offset": 154984,
+      "offsetHex": "0x00025D68",
+      "expected": 4735013,
+      "expectedHex": "0x00484025",
+      "replacement": 1014016,
+      "replacementHex": "0x000F7900"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-37",
+      "offset": 154988,
+      "offsetHex": "0x00025D6C",
+      "expected": 2697461760,
+      "expectedHex": "0xA0C80000",
+      "replacement": 2442723328,
+      "replacementHex": "0x91990000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-38",
+      "offset": 154992,
+      "offsetHex": "0x00025D70",
+      "expected": 2426929152,
+      "expectedHex": "0x90A80000",
+      "replacement": 33126437,
+      "replacementHex": "0x01F97825"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-39",
+      "offset": 154996,
+      "offsetHex": "0x00025D74",
+      "expected": 20983845,
+      "expectedHex": "0x01403025",
+      "replacement": 2710503424,
+      "replacementHex": "0xA18F0000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-40",
+      "offset": 155000,
+      "offsetHex": "0x00025D78",
+      "expected": 822673456,
+      "expectedHex": "0x31090030",
+      "replacement": 287309826,
+      "replacementHex": "0x11200002"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-41",
+      "offset": 155004,
+      "offsetHex": "0x00025D7C",
+      "expected": 608515,
+      "expectedHex": "0x00094903",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-42",
+      "offset": 155008,
+      "offsetHex": "0x00025D80",
+      "expected": 2428633088,
+      "expectedHex": "0x90C20000",
+      "replacement": 629932033,
+      "replacementHex": "0x258C0001"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-43",
+      "offset": 155012,
+      "offsetHex": "0x00025D84",
+      "expected": 872939520,
+      "expectedHex": "0x34080000",
+      "replacement": 958988289,
+      "replacementHex": "0x39290001"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-44",
+      "offset": 155016,
+      "offsetHex": "0x00025D88",
+      "expected": 824836095,
+      "expectedHex": "0x3129FFFF",
+      "replacement": 634257409,
+      "replacementHex": "0x25CE0001"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-45",
+      "offset": 155020,
+      "offsetHex": "0x00025D8C",
+      "expected": 1428160513,
+      "expectedHex": "0x55200001",
+      "replacement": 30111787,
+      "replacementHex": "0x01CB782B"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-46",
+      "offset": 155024,
+      "offsetHex": "0x00025D90",
+      "expected": 19349537,
+      "expectedHex": "0x01274021",
+      "replacement": 367067109,
+      "replacementHex": "0x15E0FFE5"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-47",
+      "offset": 155028,
+      "offsetHex": "0x00025D94",
+      "expected": 4735013,
+      "expectedHex": "0x00484025",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-48",
+      "offset": 155032,
+      "offsetHex": "0x00025D98",
+      "expected": 2697461760,
+      "expectedHex": "0xA0C80000",
+      "replacement": 873332736,
+      "replacementHex": "0x340E0000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-49",
+      "offset": 155036,
+      "offsetHex": "0x00025D9C",
+      "expected": 2426732544,
+      "expectedHex": "0x90A50000",
+      "replacement": 612630533,
+      "replacementHex": "0x24840005"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-50",
+      "offset": 155040,
+      "offsetHex": "0x00025DA0",
+      "expected": 2428633088,
+      "expectedHex": "0x90C20000",
+      "replacement": 10954785,
+      "replacementHex": "0x00A72821"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-51",
+      "offset": 155044,
+      "offsetHex": "0x00025DA4",
+      "expected": 816316608,
+      "expectedHex": "0x30A800C0",
+      "replacement": 614793225,
+      "replacementHex": "0x24A50009"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-52",
+      "offset": 155048,
+      "offsetHex": "0x00025DA8",
+      "expected": 540803,
+      "expectedHex": "0x00084083",
+      "replacement": 10510369,
+      "replacementHex": "0x00A06021"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-53",
+      "offset": 155052,
+      "offsetHex": "0x00025DAC",
+      "expected": 872742912,
+      "expectedHex": "0x34050000",
+      "replacement": 632094721,
+      "replacementHex": "0x25AD0001"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-54",
+      "offset": 155056,
+      "offsetHex": "0x00025DB0",
+      "expected": 822673407,
+      "expectedHex": "0x3108FFFF",
+      "replacement": 766443538,
+      "replacementHex": "0x2DAF0012"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-55",
+      "offset": 155060,
+      "offsetHex": "0x00025DB4",
+      "expected": 1426063361,
+      "expectedHex": "0x55000001",
+      "replacement": 367067099,
+      "replacementHex": "0x15E0FFDB"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-56",
+      "offset": 155064,
+      "offsetHex": "0x00025DB8",
+      "expected": 17639457,
+      "expectedHex": "0x010D2821",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-57",
+      "offset": 155068,
+      "offsetHex": "0x00025DBC",
+      "expected": 4532261,
+      "expectedHex": "0x00452825",
+      "replacement": 2433513448,
+      "replacementHex": "0x910C77E8"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-58",
+      "offset": 155072,
+      "offsetHex": "0x00025DC0",
+      "expected": 2697265152,
+      "expectedHex": "0xA0C50000",
+      "replacement": 23877665,
+      "replacementHex": "0x016C5821"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-59",
+      "offset": 155076,
+      "offsetHex": "0x00025DC4",
+      "expected": 23078949,
+      "expectedHex": "0x01602825",
+      "replacement": 2701752296,
+      "replacementHex": "0xA10977E8"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-60",
+      "offset": 155080,
+      "offsetHex": "0x00025DC8",
+      "expected": 2426994688,
+      "expectedHex": "0x90A90000",
+      "replacement": 743491,
+      "replacementHex": "0x000B5843"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-61",
+      "offset": 155084,
+      "offsetHex": "0x00025DCC",
+      "expected": 616955905,
+      "expectedHex": "0x24C60001",
+      "replacement": 2366404580,
+      "replacementHex": "0x8D0C77E4"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-62",
+      "offset": 155088,
+      "offsetHex": "0x00025DD0",
+      "expected": 610467841,
+      "expectedHex": "0x24630001",
+      "replacement": 23877665,
+      "replacementHex": "0x016C5821"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-63",
+      "offset": 155092,
+      "offsetHex": "0x00025DD4",
+      "expected": 824770563,
+      "expectedHex": "0x31290003",
+      "replacement": 2903209956,
+      "replacementHex": "0xAD0B77E4"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-64",
+      "offset": 155096,
+      "offsetHex": "0x00025DD8",
+      "expected": 678297604,
+      "expectedHex": "0x286E0004",
+      "replacement": 65011720,
+      "replacementHex": "0x03E00008"
+    },
+    {
+      "group": "vwf-core",
+      "name": "vwf-core-65",
+      "offset": 155100,
+      "offsetHex": "0x00025DDC",
+      "expected": 2428633088,
+      "expectedHex": "0x90C20000",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "message-layout",
+      "name": "speaker-line-spacing",
+      "offset": 15652,
+      "offsetHex": "0x00003D24",
+      "expected": 612630544,
+      "expectedHex": "0x24840010",
+      "replacement": 612630546,
+      "replacementHex": "0x24840012"
+    },
+    {
+      "group": "message-layout",
+      "name": "message-overlap",
+      "offset": 31388,
+      "offsetHex": "0x00007A9C",
+      "expected": 621346814,
+      "expectedHex": "0x2508FFFE",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "message-layout",
+      "name": "message-size-overlap",
+      "offset": 31564,
+      "offsetHex": "0x00007B4C",
+      "expected": 644218878,
+      "expectedHex": "0x2665FFFE",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "message-layout",
+      "name": "message-log-overlap",
+      "offset": 31800,
+      "offsetHex": "0x00007C38",
+      "expected": 621346814,
+      "expectedHex": "0x2508FFFE",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "message-layout",
+      "name": "file-select-overlap",
+      "offset": 222948,
+      "offsetHex": "0x000366E4",
+      "expected": 639893520,
+      "expectedHex": "0x26240010",
+      "replacement": 639893522,
+      "replacementHex": "0x26240012"
+    },
+    {
+      "group": "message-layout",
+      "name": "automatic-newline",
+      "offset": 240772,
+      "offsetHex": "0x0003AC84",
+      "expected": 289406994,
+      "expectedHex": "0x11400012",
+      "replacement": 268435474,
+      "replacementHex": "0x10000012"
+    },
+    {
+      "group": "message-layout",
+      "name": "textbox-position",
+      "offset": 19864,
+      "offsetHex": "0x00004D98",
+      "expected": 614793341,
+      "expectedHex": "0x24A5007D",
+      "replacement": 872743037,
+      "replacementHex": "0x3405007D"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-a",
+      "offset": 15440,
+      "offsetHex": "0x00003C50",
+      "expected": 614793333,
+      "expectedHex": "0x24A50075",
+      "replacement": 614793331,
+      "replacementHex": "0x24A50073"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-b",
+      "offset": 15504,
+      "offsetHex": "0x00003C90",
+      "expected": 11020321,
+      "expectedHex": "0x00A82821",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-c",
+      "offset": 15540,
+      "offsetHex": "0x00003CB4",
+      "expected": 614793333,
+      "expectedHex": "0x24A50075",
+      "replacement": 614793331,
+      "replacementHex": "0x24A50073"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-00",
+      "offset": 239176,
+      "offsetHex": "0x0003A648",
+      "expected": 14696485,
+      "expectedHex": "0x00E04025",
+      "replacement": 409664,
+      "replacementHex": "0x00064040"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-01",
+      "offset": 239180,
+      "offsetHex": "0x0003A64C",
+      "expected": 12601381,
+      "expectedHex": "0x00C04825",
+      "replacement": 34095139,
+      "replacementHex": "0x02084023"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-02",
+      "offset": 239184,
+      "offsetHex": "0x0003A650",
+      "expected": 814153983,
+      "expectedHex": "0x308700FF",
+      "replacement": 873136128,
+      "replacementHex": "0x340B0000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-03",
+      "offset": 239188,
+      "offsetHex": "0x0003A654",
+      "expected": 816185599,
+      "expectedHex": "0x30A600FF",
+      "replacement": 2500395008,
+      "replacementHex": "0x95090000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-04",
+      "offset": 239192,
+      "offsetHex": "0x0003A658",
+      "expected": 822345983,
+      "expectedHex": "0x310400FF",
+      "replacement": 873070684,
+      "replacementHex": "0x340A005C"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-05",
+      "offset": 239196,
+      "offsetHex": "0x0003A65C",
+      "expected": 343932967,
+      "expectedHex": "0x14800027",
+      "replacement": 19529752,
+      "replacementHex": "0x012A0018"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-06",
+      "offset": 239200,
+      "offsetHex": "0x0003A660",
+      "expected": 824508671,
+      "expectedHex": "0x312500FF",
+      "replacement": 18450,
+      "replacementHex": "0x00004812"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-07",
+      "offset": 239204,
+      "offsetHex": "0x0003A664",
+      "expected": 12918826,
+      "expectedHex": "0x00C5202A",
+      "replacement": 1007290747,
+      "replacementHex": "0x3C0A097B"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-08",
+      "offset": 239208,
+      "offsetHex": "0x0003A668",
+      "expected": 343932975,
+      "expectedHex": "0x1480002F",
+      "replacement": 625637376,
+      "replacementHex": "0x254A7800"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-09",
+      "offset": 239212,
+      "offsetHex": "0x0003A66C",
+      "expected": 0,
+      "expectedHex": "0x00000000",
+      "replacement": 19548193,
+      "replacementHex": "0x012A4821"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-10",
+      "offset": 239216,
+      "offsetHex": "0x0003A670",
+      "expected": 278921261,
+      "expectedHex": "0x10A0002D",
+      "replacement": 2435383386,
+      "replacementHex": "0x9129005A"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-11",
+      "offset": 239220,
+      "offsetHex": "0x0003A674",
+      "expected": 686030850,
+      "expectedHex": "0x28E40002",
+      "replacement": 23681057,
+      "replacementHex": "0x01695821"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-12",
+      "offset": 239224,
+      "offsetHex": "0x0003A678",
+      "expected": 276824075,
+      "expectedHex": "0x1080000B",
+      "replacement": 621281282,
+      "replacementHex": "0x25080002"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-13",
+      "offset": 239228,
+      "offsetHex": "0x0003A67C",
+      "expected": 686030851,
+      "expectedHex": "0x28E40003",
+      "replacement": 353435637,
+      "replacementHex": "0x1510FFF5"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-14",
+      "offset": 239232,
+      "offsetHex": "0x0003A680",
+      "expected": 81788969,
+      "expectedHex": "0x04E00029",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-15",
+      "offset": 239236,
+      "offsetHex": "0x0003A684",
+      "expected": 0,
+      "expectedHex": "0x00000000",
+      "replacement": 872939638,
+      "replacementHex": "0x34080076"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-16",
+      "offset": 239240,
+      "offsetHex": "0x0003A688",
+      "expected": 417333287,
+      "expectedHex": "0x18E00027",
+      "replacement": 17518634,
+      "replacementHex": "0x010B502A"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-17",
+      "offset": 239244,
+      "offsetHex": "0x0003A68C",
+      "expected": 12918819,
+      "expectedHex": "0x00C52023",
+      "replacement": 356515845,
+      "replacementHex": "0x15400005"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-18",
+      "offset": 239248,
+      "offsetHex": "0x0003A690",
+      "expected": 272640,
+      "expectedHex": "0x00042900",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-19",
+      "offset": 239252,
+      "offsetHex": "0x0003A694",
+      "expected": 8726561,
+      "expectedHex": "0x00852821",
+      "replacement": 17514531,
+      "replacementHex": "0x010B4023"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-20",
+      "offset": 239256,
+      "offsetHex": "0x0003A698",
+      "expected": 8724513,
+      "expectedHex": "0x00852021",
+      "replacement": 528451,
+      "replacementHex": "0x00081043"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-21",
+      "offset": 239260,
+      "offsetHex": "0x0003A69C",
+      "expected": 267264,
+      "expectedHex": "0x00041400",
+      "replacement": 65011720,
+      "replacementHex": "0x03E00008"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-22",
+      "offset": 239264,
+      "offsetHex": "0x0003A6A0",
+      "expected": 65011720,
+      "expectedHex": "0x03E00008",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-23",
+      "offset": 239268,
+      "offsetHex": "0x0003A6A4",
+      "expected": 136195,
+      "expectedHex": "0x00021403",
+      "replacement": 872546304,
+      "replacementHex": "0x34020000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-24",
+      "offset": 239272,
+      "offsetHex": "0x0003A6A8",
+      "expected": 343932941,
+      "expectedHex": "0x1480000D",
+      "replacement": 65011720,
+      "replacementHex": "0x03E00008"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-center-code-25",
+      "offset": 239276,
+      "offsetHex": "0x0003A6AC",
+      "expected": 12918819,
+      "expectedHex": "0x00C52023",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-00",
+      "offset": 239932,
+      "offsetHex": "0x0003A93C",
+      "expected": 666763216,
+      "expectedHex": "0x27BDFFD0",
+      "replacement": 666763184,
+      "replacementHex": "0x27BDFFB0"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-01",
+      "offset": 239940,
+      "offsetHex": "0x0003A944",
+      "expected": 2947612696,
+      "expectedHex": "0xAFB10018",
+      "replacement": 2947612744,
+      "replacementHex": "0xAFB10048"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-02",
+      "offset": 239956,
+      "offsetHex": "0x0003A954",
+      "expected": 2947547156,
+      "expectedHex": "0xAFB00014",
+      "replacement": 2947547204,
+      "replacementHex": "0xAFB00044"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-03",
+      "offset": 239960,
+      "offsetHex": "0x0003A958",
+      "expected": 2947678236,
+      "expectedHex": "0xAFB2001C",
+      "replacement": 2947678284,
+      "replacementHex": "0xAFB2004C"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-04",
+      "offset": 239964,
+      "offsetHex": "0x0003A95C",
+      "expected": 2948530208,
+      "expectedHex": "0xAFBF0020",
+      "replacement": 2948530256,
+      "replacementHex": "0xAFBF0050"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-05",
+      "offset": 240012,
+      "offsetHex": "0x0003A98C",
+      "expected": 2410676244,
+      "expectedHex": "0x8FB00014",
+      "replacement": 2410676292,
+      "replacementHex": "0x8FB00044"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-06",
+      "offset": 240016,
+      "offsetHex": "0x0003A990",
+      "expected": 2410741784,
+      "expectedHex": "0x8FB10018",
+      "replacement": 2410741832,
+      "replacementHex": "0x8FB10048"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-07",
+      "offset": 240020,
+      "offsetHex": "0x0003A994",
+      "expected": 2410807324,
+      "expectedHex": "0x8FB2001C",
+      "replacement": 2410807372,
+      "replacementHex": "0x8FB2004C"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-08",
+      "offset": 240024,
+      "offsetHex": "0x0003A998",
+      "expected": 2411659296,
+      "expectedHex": "0x8FBF0020",
+      "replacement": 2411659344,
+      "replacementHex": "0x8FBF0050"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-09",
+      "offset": 240032,
+      "offsetHex": "0x0003A9A0",
+      "expected": 666697776,
+      "expectedHex": "0x27BD0030",
+      "replacement": 666697808,
+      "replacementHex": "0x27BD0050"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-10",
+      "offset": 240056,
+      "offsetHex": "0x0003A9B8",
+      "expected": 2410676244,
+      "expectedHex": "0x8FB00014",
+      "replacement": 2410676292,
+      "replacementHex": "0x8FB00044"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-11",
+      "offset": 240060,
+      "offsetHex": "0x0003A9BC",
+      "expected": 2410741784,
+      "expectedHex": "0x8FB10018",
+      "replacement": 2410741832,
+      "replacementHex": "0x8FB10048"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-12",
+      "offset": 240064,
+      "offsetHex": "0x0003A9C0",
+      "expected": 2410807324,
+      "expectedHex": "0x8FB2001C",
+      "replacement": 2410807372,
+      "replacementHex": "0x8FB2004C"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-13",
+      "offset": 240068,
+      "offsetHex": "0x0003A9C4",
+      "expected": 2411659296,
+      "expectedHex": "0x8FBF0020",
+      "replacement": 2411659344,
+      "replacementHex": "0x8FBF0050"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-14",
+      "offset": 240076,
+      "offsetHex": "0x0003A9CC",
+      "expected": 666697776,
+      "expectedHex": "0x27BD0030",
+      "replacement": 666697808,
+      "replacementHex": "0x27BD0050"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-15",
+      "offset": 240088,
+      "offsetHex": "0x0003A9D8",
+      "expected": 872808455,
+      "expectedHex": "0x34060007",
+      "replacement": 872808471,
+      "replacementHex": "0x34060017"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-16",
+      "offset": 240120,
+      "offsetHex": "0x0003A9F8",
+      "expected": 2410676244,
+      "expectedHex": "0x8FB00014",
+      "replacement": 2410676292,
+      "replacementHex": "0x8FB00044"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-17",
+      "offset": 240124,
+      "offsetHex": "0x0003A9FC",
+      "expected": 2410741784,
+      "expectedHex": "0x8FB10018",
+      "replacement": 2410741832,
+      "replacementHex": "0x8FB10048"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-18",
+      "offset": 240128,
+      "offsetHex": "0x0003AA00",
+      "expected": 2410807324,
+      "expectedHex": "0x8FB2001C",
+      "replacement": 2410807372,
+      "replacementHex": "0x8FB2004C"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-19",
+      "offset": 240132,
+      "offsetHex": "0x0003AA04",
+      "expected": 2411659296,
+      "expectedHex": "0x8FBF0020",
+      "replacement": 2411659344,
+      "replacementHex": "0x8FBF0050"
+    },
+    {
+      "group": "speaker-layout",
+      "name": "speaker-limit-20",
+      "offset": 240140,
+      "offsetHex": "0x0003AA0C",
+      "expected": 666697776,
+      "expectedHex": "0x27BD0030",
+      "replacement": 666697808,
+      "replacementHex": "0x27BD0050"
+    },
+    {
+      "group": "choice-layout",
+      "name": "choice-width-1",
+      "offset": 30824,
+      "offsetHex": "0x00007868",
+      "expected": 872677394,
+      "expectedHex": "0x34040012",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "choice-layout",
+      "name": "choice-width-2",
+      "offset": 30828,
+      "offsetHex": "0x0000786C",
+      "expected": 9642019,
+      "expectedHex": "0x00932023",
+      "replacement": 872677376,
+      "replacementHex": "0x34040000"
+    },
+    {
+      "group": "choice-layout",
+      "name": "choice-width-3",
+      "offset": 31040,
+      "offsetHex": "0x00007940",
+      "expected": 276824084,
+      "expectedHex": "0x10800014",
+      "replacement": 0,
+      "replacementHex": "0x00000000"
+    },
+    {
+      "group": "name-layout",
+      "name": "name-layout-00",
+      "offset": 221940,
+      "offsetHex": "0x000362F4",
+      "expected": 10498085,
+      "expectedHex": "0x00A03025",
+      "replacement": 169912136,
+      "replacementHex": "0x0A20A748"
+    },
+    {
+      "group": "name-layout",
+      "name": "name-layout-01",
+      "offset": 221944,
+      "offsetHex": "0x000362F8",
+      "expected": 872742912,
+      "expectedHex": "0x34050000",
+      "replacement": 2759852032,
+      "replacementHex": "0xA4800000"
+    },
+    {
+      "group": "name-layout",
+      "name": "name-layout-02",
+      "offset": 155104,
+      "offsetHex": "0x00025DE0",
+      "expected": 824770559,
+      "expectedHex": "0x3128FFFF",
+      "replacement": 10498081,
+      "replacementHex": "0x00A03021"
+    },
+    {
+      "group": "name-layout",
+      "name": "name-layout-03",
+      "offset": 155108,
+      "offsetHex": "0x00025DE4",
+      "expected": 617218049,
+      "expectedHex": "0x24CA0001",
+      "replacement": 872742912,
+      "replacementHex": "0x34050000"
+    },
+    {
+      "group": "name-layout",
+      "name": "name-layout-04",
+      "offset": 155112,
+      "offsetHex": "0x00025DE8",
+      "expected": 364969937,
+      "expectedHex": "0x15C0FFD1",
+      "replacement": 612630530,
+      "replacementHex": "0x24840002"
+    },
+    {
+      "group": "name-layout",
+      "name": "name-layout-05",
+      "offset": 155116,
+      "offsetHex": "0x00025DEC",
+      "expected": 615186433,
+      "expectedHex": "0x24AB0001",
+      "replacement": 169928847,
+      "replacementHex": "0x0A20E88F"
+    },
+    {
+      "group": "name-layout",
+      "name": "name-layout-06",
+      "offset": 155120,
+      "offsetHex": "0x00025DF0",
+      "expected": 16783397,
+      "expectedHex": "0x01001825",
+      "replacement": 640745474,
+      "replacementHex": "0x26310002"
+    }
+  ]
+}

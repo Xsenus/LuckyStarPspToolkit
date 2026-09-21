@@ -1,0 +1,8 @@
+Python syntax validation passed.
+scripts/reference_oracle.py
+scripts/release_validate.py
+validation/static_validate.py
+validation/validate_customer_data.py
+validation/validate_font_fixtures.py
+validation/validate_iso_fixture.py
+validation/validate_iso_rebuild.py

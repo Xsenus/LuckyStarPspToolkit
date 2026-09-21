@@ -1,0 +1,57 @@
+name: build-test-package
+
+on:
+  push:
+    branches: [main, master, 'develop/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-release-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install development validators
+        run: python -m pip install --disable-pip-version-check -r validation/requirements.txt
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Checked build, tests, Roslyn summaries, publish and synthetic demo
+        run: python scripts/build_release.py --rids ${{ matrix.rid }}
+      - name: Upload validated packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-${{ matrix.rid }}
+          path: |
+            artifacts/releases/*/*.zip
+            artifacts/releases/*/*.zip.sha256
+            artifacts/releases/*/build-report.json
+          if-no-files-found: error
+      - name: Upload diagnostic logs (also after failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.rid }}
+          path: |
+            artifacts/build-logs
+            artifacts/demo
+          if-no-files-found: warn

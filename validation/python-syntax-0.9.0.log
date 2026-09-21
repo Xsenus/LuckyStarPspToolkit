@@ -1,0 +1,16 @@
+Python syntax validation passed.
+scripts/csharp_symbols.py
+scripts/document_csharp.py
+scripts/generate_api_reference.py
+scripts/package_release.py
+scripts/reference_oracle.py
+scripts/release_validate.py
+validation/audit_repository.py
+validation/static_validate.py
+validation/validate_csharp_docs.py
+validation/validate_customer_baseline.py
+validation/validate_customer_data.py
+validation/validate_font_fixtures.py
+validation/validate_iso_fixture.py
+validation/validate_iso_rebuild.py
+validation/validate_vwf_patch.py

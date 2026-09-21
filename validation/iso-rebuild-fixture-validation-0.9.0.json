@@ -1,0 +1,12 @@
+{
+  "schema": "lucky-star-psp.iso-rebuild-fixture-validation.v1",
+  "passed": true,
+  "sourceSha256": "365a952e36d37061bab1d4a22d938683d4c39bff36f208edafa0758d176a54c5",
+  "outputSha256": "9d6afa89d328df29dfe4d2807990900a8fb0e8c802861b96c316e0fe35cd62c3",
+  "sourceBytes": 221184,
+  "outputBytes": 366592,
+  "volumeBlocks": 179,
+  "replacementCount": 2,
+  "changedPrefixByteCount": 10,
+  "unchangedEntryCount": 11
+}

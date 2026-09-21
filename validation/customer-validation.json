@@ -1,0 +1,355 @@
+{
+  "schema": "lucky-star-psp.customer-validation.v2",
+  "archive": "archive.zip (customer-supplied; not packaged)",
+  "files": [
+    {
+      "path": "BOOT.BIN",
+      "size": 1470173,
+      "compressed_size": 1441,
+      "sha256": "60a5dbdd71db46315025f90fedede7a31f1e883077b3355e89348d3efbceed9b",
+      "kind": "zero-filled"
+    },
+    {
+      "path": "DATA.BIN",
+      "size": 26120416,
+      "compressed_size": 26069384,
+      "sha256": "3e6e7b4d46a215af24761bfdc0b82fa6c346fd266e69a010ad7723970e71788e",
+      "kind": "psar"
+    },
+    {
+      "path": "EBOOT-2.BIN",
+      "size": 5540576,
+      "compressed_size": 5542221,
+      "sha256": "5ff66bc5cf2f1bfc658107737a6405b57fb969fe0641d64baca8039300d0a05f",
+      "kind": "psp-prx",
+      "psp_header": {
+        "module_name": "updater",
+        "elf_size": 5540239,
+        "psp_size": 5540576,
+        "entry": 1948,
+        "module_info_offset": 1118480,
+        "bss_size": 221380,
+        "devkit_version": "0x00000000",
+        "decrypt_mode": "0x00000003",
+        "compressed_size": 5540239,
+        "tag": "0x02000000",
+        "oe_tag": "0xB76FFE2A"
+      }
+    },
+    {
+      "path": "EBOOT.BIN",
+      "size": 1470512,
+      "compressed_size": 1470858,
+      "sha256": "4a22c50c0a6ad6249dd1d9ab015d559b19b4acd79daf892a6f29a58648b834f0",
+      "kind": "psp-prx",
+      "psp_header": {
+        "module_name": "user_main",
+        "elf_size": 1470173,
+        "psp_size": 1470512,
+        "entry": 338144,
+        "module_info_offset": 961264,
+        "bss_size": 1681248,
+        "devkit_version": "0x06030010",
+        "decrypt_mode": "0x00000009",
+        "compressed_size": 1470173,
+        "tag": "0xD91613F0",
+        "oe_tag": "0x21CD775C"
+      }
+    },
+    {
+      "path": "OPNSSMP.BIN",
+      "size": 880,
+      "compressed_size": 738,
+      "sha256": "c4ebace3c757b984b8ed90a45de19e9ef8531d4cde4c6078e6e8a468b91b37e9",
+      "kind": "psp-prx",
+      "psp_header": {
+        "module_name": " ",
+        "elf_size": 804,
+        "psp_size": 880,
+        "entry": 0,
+        "module_info_offset": 344,
+        "bss_size": 0,
+        "devkit_version": "0x06000010",
+        "decrypt_mode": "0x00000004",
+        "compressed_size": 543,
+        "tag": "0x457B0CF0",
+        "oe_tag": "0x21F67EBA"
+      }
+    },
+    {
+      "path": "PARAM-2.SFO",
+      "size": 560,
+      "compressed_size": 326,
+      "sha256": "ff7dd47dd579c21fb7200e8636420836b7a05605e3c8c2425e9d09d70c385508",
+      "kind": "param-sfo",
+      "sfo": {
+        "APP_VER": "01.00",
+        "BOOTABLE": 1,
+        "CATEGORY": "UG",
+        "DISC_ID": "ULJM05752",
+        "DISC_NUMBER": 1,
+        "DISC_TOTAL": 1,
+        "DISC_VERSION": "1.00",
+        "HRKGMP_VER": 19,
+        "PARENTAL_LEVEL": 5,
+        "PSP_SYSTEM_VER": "6.31",
+        "REGION": 32768,
+        "TITLE": "らき☆すた　陵桜学園桜藤祭　Ｐｏｒｔａｂｌｅ",
+        "USE_USB": 0
+      }
+    },
+    {
+      "path": "PARAM.SFO",
+      "size": 2080,
+      "compressed_size": 533,
+      "sha256": "b01b0ee97969f9d44b58ff67d8f9741ed667363c826de627f5cf46ebd6ea750f",
+      "kind": "param-sfo",
+      "sfo": {
+        "BOOTABLE": 1,
+        "CATEGORY": "MG",
+        "DISC_ID": "MSTKUPDATE",
+        "DISC_VERSION": "1.00",
+        "PARENTAL_LEVEL": 1,
+        "REGION": 32768,
+        "TITLE": "PSP™ Update ver 6.31",
+        "TITLE_0": "PSP™ アップデート ver 6.31",
+        "TITLE_10": "PSP™更新 版本 6.31",
+        "TITLE_11": "PSP™升级 版本 6.31",
+        "TITLE_2": "Mise à jour PSP™ ver. 6.31",
+        "TITLE_3": "Actualización de PSP™ ver. 6.31",
+        "TITLE_4": "PSP™-Aktualisierung Ver. 6.31",
+        "TITLE_5": "Aggiornamento della PSP™\nver. 6.31",
+        "TITLE_6": "PSP™-update versie 6.31",
+        "TITLE_7": "Actualização PSP™ ver 6.31",
+        "TITLE_8": "Обновление PSP™ вер. 6.31",
+        "TITLE_9": "PSP™ 업데이트 버전 6.31",
+        "UPDATER_VER": "6.31"
+      }
+    },
+    {
+      "path": "titlein.pmf",
+      "size": 9814016,
+      "compressed_size": 9679165,
+      "sha256": "86ca5324c438bbafedae2f29d1eea5a052bc59ff3cef427ade662f25e79619f1",
+      "kind": "psmf"
+    }
+  ],
+  "customer_conclusions": {
+    "game_disc_id": "ULJM05752",
+    "game_title": "らき☆すた　陵桜学園桜藤祭　Ｐｏｒｔａｂｌｅ",
+    "firmware_disc_id": "MSTKUPDATE",
+    "firmware_title": "PSP™ Update ver 6.31",
+    "zero_boot_detected": true,
+    "sc_cpk_present": false,
+    "lt_bin_present": false
+  },
+  "eboot": {
+    "header": {
+      "module_name": "user_main",
+      "elf_size": 1470173,
+      "psp_size": 1470512,
+      "entry": 338144,
+      "module_info_offset": 961264,
+      "bss_size": 1681248,
+      "devkit_version": "0x06030010",
+      "decrypt_mode": "0x00000009",
+      "compressed_size": 1470173,
+      "tag": "0xD91613F0",
+      "oe_tag": "0x21CD775C"
+    },
+    "encrypted_sha256": "4a22c50c0a6ad6249dd1d9ab015d559b19b4acd79daf892a6f29a58648b834f0",
+    "encrypted_hash_matches_profile": true,
+    "decrypted_size": 1470173,
+    "decrypted_sha256": "3e6c1c2f7136a69cecda4f39835c3454b739e23e89e862fe17462cdf915581d8",
+    "decrypted_hash_matches_profile": true,
+    "crypto": {
+      "type2_sha1": "passed",
+      "kirk_header_cmac": "passed",
+      "kirk_payload_cmac": "passed",
+      "encrypted_payload_offset": 336,
+      "encrypted_payload_size": 1470176
+    },
+    "referenced_assets": [
+      "sc.cpk",
+      "lt.bin",
+      "union.cpk",
+      "pr.bin"
+    ],
+    "script_slots": [
+      {
+        "id": 0,
+        "blocks_2k": 1132,
+        "cumulative_blocks_2k": 1132,
+        "size_bytes": 2318336,
+        "cumulative_valid": true
+      },
+      {
+        "id": 1,
+        "blocks_2k": 110,
+        "cumulative_blocks_2k": 1242,
+        "size_bytes": 225280,
+        "cumulative_valid": true
+      },
+      {
+        "id": 2,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1304,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 3,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1366,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 4,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1428,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 5,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1490,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 6,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1552,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 7,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1614,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 8,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1676,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 9,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1738,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      },
+      {
+        "id": 10,
+        "blocks_2k": 62,
+        "cumulative_blocks_2k": 1800,
+        "size_bytes": 126976,
+        "cumulative_valid": true
+      }
+    ],
+    "script_table_consistent": true,
+    "patch_points": [
+      {
+        "offset": "0x00003D24",
+        "expected": "0x24840010",
+        "actual": "0x24840010",
+        "matches": true
+      },
+      {
+        "offset": "0x00004D98",
+        "expected": "0x24A5007D",
+        "actual": "0x24A5007D",
+        "matches": true
+      },
+      {
+        "offset": "0x00007868",
+        "expected": "0x34040012",
+        "actual": "0x34040012",
+        "matches": true
+      },
+      {
+        "offset": "0x0000786C",
+        "expected": "0x00932023",
+        "actual": "0x00932023",
+        "matches": true
+      },
+      {
+        "offset": "0x00007940",
+        "expected": "0x10800014",
+        "actual": "0x10800014",
+        "matches": true
+      },
+      {
+        "offset": "0x00007A9C",
+        "expected": "0x2508FFFE",
+        "actual": "0x2508FFFE",
+        "matches": true
+      },
+      {
+        "offset": "0x00007B4C",
+        "expected": "0x2665FFFE",
+        "actual": "0x2665FFFE",
+        "matches": true
+      },
+      {
+        "offset": "0x00007C38",
+        "expected": "0x2508FFFE",
+        "actual": "0x2508FFFE",
+        "matches": true
+      },
+      {
+        "offset": "0x00025CD8",
+        "expected": "0x00A04825",
+        "actual": "0x00A04825",
+        "matches": true
+      },
+      {
+        "offset": "0x00025DE0",
+        "expected": "0x3128FFFF",
+        "actual": "0x3128FFFF",
+        "matches": true
+      },
+      {
+        "offset": "0x000362F4",
+        "expected": "0x00A03025",
+        "actual": "0x00A03025",
+        "matches": true
+      },
+      {
+        "offset": "0x000366E4",
+        "expected": "0x26240010",
+        "actual": "0x26240010",
+        "matches": true
+      },
+      {
+        "offset": "0x0003A648",
+        "expected": "0x00E04025",
+        "actual": "0x00E04025",
+        "matches": true
+      },
+      {
+        "offset": "0x0003A93C",
+        "expected": "0x27BDFFD0",
+        "actual": "0x27BDFFD0",
+        "matches": true
+      },
+      {
+        "offset": "0x0003AC84",
+        "expected": "0x11400012",
+        "actual": "0x11400012",
+        "matches": true
+      }
+    ],
+    "all_patch_points_match": true,
+    "cpp_oracle_matches_byte_for_byte": true,
+    "tamper_rejected": true,
+    "tamper_error": "KIRK payload CMAC failed"
+  }
+}

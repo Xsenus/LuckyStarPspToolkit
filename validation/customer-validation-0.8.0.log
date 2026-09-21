@@ -1,0 +1,5 @@
+validated: archive.zip
+encrypted SHA-256: 4a22c50c0a6ad6249dd1d9ab015d559b19b4acd79daf892a6f29a58648b834f0
+decrypted SHA-256: 3e6c1c2f7136a69cecda4f39835c3454b739e23e89e862fe17462cdf915581d8
+C++ oracle match: None
+tamper rejected: KIRK payload CMAC failed

@@ -1,0 +1,21 @@
+{
+  "schema": "lucky-star-psp.static-validation.v2",
+  "passed": true,
+  "checks": [
+    "text files are UTF-8/LF and policy-clean",
+    "JSON and MSBuild XML files parse",
+    "projects and canonical solution are consistent",
+    "C# delimiter balance passes token-aware scan",
+    "recognized named C# types and methods have XML documentation (offline check)",
+    "source has no sidecar, network, process, or NuGet dependency",
+    "repository governance files and checked workflow entry points are present (not executed)",
+    "release-hardening optimizations and tests remain present",
+    "version metadata is centrally consistent",
+    "revision profile agrees with preserved customer report (no fresh raw-data run)",
+    "RGO VWF profile, schema, C# source, and CLI remain synchronized",
+    "PRX tag and AES constants match the independent oracle",
+    "font pipeline source and fixture contracts are consistent",
+    "ISO parser, asset collector, and fixture contracts are consistent"
+  ],
+  "errors": []
+}

@@ -1,0 +1,230 @@
+{
+  "schema": "lucky-star-psp.release-validation.v2",
+  "version": "0.9.0",
+  "generatedUtc": "2026-09-20T09:48:50.716762+00:00",
+  "customerArchive": null,
+  "status": "partial",
+  "summary": {
+    "passed": 12,
+    "failed": 0,
+    "skipped": 7
+  },
+  "checks": [
+    {
+      "name": "Python syntax",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "-m",
+        "py_compile",
+        "scripts/*.py",
+        "validation/*.py"
+      ],
+      "exit_code": 0,
+      "log": "validation/python-syntax-0.9.0.log",
+      "detail": "15 Python file(s) compiled"
+    },
+    {
+      "name": "Bash syntax",
+      "status": "passed",
+      "command": [
+        "/usr/bin/bash",
+        "-n",
+        "scripts/build.sh",
+        "scripts/collect-game-assets.sh",
+        "scripts/publish.sh",
+        "scripts/rebuild-game-iso.sh",
+        "scripts/resolve-dotnet.sh",
+        "scripts/test-customer.sh",
+        "scripts/test.sh",
+        "scripts/validate-source.sh"
+      ],
+      "exit_code": 0,
+      "log": "validation/bash-syntax-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "PowerShell syntax",
+      "status": "skipped",
+      "command": [],
+      "exit_code": null,
+      "log": null,
+      "detail": "PowerShell executable is unavailable"
+    },
+    {
+      "name": "C# XML documentation validation",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "validation/validate_csharp_docs.py",
+        "--output",
+        "validation/csharp-doc-validation-0.9.0.json"
+      ],
+      "exit_code": 0,
+      "log": "validation/csharp-doc-validation-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Generated API reference validation",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "scripts/generate_api_reference.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": "validation/api-reference-validation-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Static source validation",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "validation/static_validate.py"
+      ],
+      "exit_code": 0,
+      "log": "validation/static-validation-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Repository security and provenance audit",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "validation/audit_repository.py",
+        "--output",
+        "validation/repository-audit-0.9.0.json"
+      ],
+      "exit_code": 0,
+      "log": "validation/repository-audit-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Preserved customer baseline consistency",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "validation/validate_customer_baseline.py",
+        "--output",
+        "validation/customer-baseline-validation-0.9.0.json"
+      ],
+      "exit_code": 0,
+      "log": "validation/customer-baseline-validation-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Independent format oracle",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "scripts/reference_oracle.py"
+      ],
+      "exit_code": 0,
+      "log": "validation/reference-oracle-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Independent font fixture validation",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "validation/validate_font_fixtures.py",
+        "--output",
+        "validation/font-fixture-validation-0.9.0.json"
+      ],
+      "exit_code": 0,
+      "log": "validation/font-fixture-validation-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Independent ISO fixture validation",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "validation/validate_iso_fixture.py",
+        "--output",
+        "validation/iso-fixture-validation-0.9.0.json"
+      ],
+      "exit_code": 0,
+      "log": "validation/iso-fixture-validation-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Independent ISO rebuild fixture validation",
+      "status": "passed",
+      "command": [
+        "/opt/pyvenv/bin/python3",
+        "validation/validate_iso_rebuild.py",
+        "--output",
+        "validation/iso-rebuild-fixture-validation-0.9.0.json"
+      ],
+      "exit_code": 0,
+      "log": "validation/iso-rebuild-fixture-validation-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "Independent customer archive validation",
+      "status": "skipped",
+      "command": [],
+      "exit_code": null,
+      "log": null,
+      "detail": "No --customer-archive argument supplied"
+    },
+    {
+      "name": "Independent RGO VWF patch validation",
+      "status": "skipped",
+      "command": [],
+      "exit_code": null,
+      "log": null,
+      "detail": "No --customer-archive argument supplied"
+    },
+    {
+      "name": "Git whitespace validation",
+      "status": "passed",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "HEAD",
+        "--",
+        "."
+      ],
+      "exit_code": 0,
+      "log": "validation/git-diff-check-0.9.0.log",
+      "detail": null
+    },
+    {
+      "name": "C# Release build",
+      "status": "skipped",
+      "command": [],
+      "exit_code": null,
+      "log": null,
+      "detail": ".NET SDK is unavailable in this execution environment"
+    },
+    {
+      "name": "C# self-tests",
+      "status": "skipped",
+      "command": [],
+      "exit_code": null,
+      "log": null,
+      "detail": ".NET SDK is unavailable in this execution environment"
+    },
+    {
+      "name": "CLI integration",
+      "status": "skipped",
+      "command": [],
+      "exit_code": null,
+      "log": null,
+      "detail": ".NET SDK is unavailable in this execution environment"
+    },
+    {
+      "name": "Framework-dependent publish",
+      "status": "skipped",
+      "command": [],
+      "exit_code": null,
+      "log": null,
+      "detail": ".NET SDK is unavailable in this execution environment"
+    }
+  ]
+}

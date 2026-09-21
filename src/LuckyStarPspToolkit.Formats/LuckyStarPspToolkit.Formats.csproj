@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Safe binary formats and translation workspace pipeline for Lucky Star PSP games.</Description>
+  </PropertyGroup>
+</Project>

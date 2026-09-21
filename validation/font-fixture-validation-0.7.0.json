@@ -1,0 +1,22 @@
+{
+  "schema": "lucky-star-psp.font-fixture-validation.v1",
+  "passed": true,
+  "checks": [
+    "font hashes, sizes, and RGO checksums",
+    "glyph map and BDF cover the complete Russian alphabet",
+    "all 66 Russian glyphs change from blank to renderable without losing metadata or unused row bits",
+    "non-target glyph records and non-zero padding are preserved",
+    "independent RGBA atlas and PNG encoding verified"
+  ],
+  "fontGlyphCount": 71,
+  "russianGlyphCount": 66,
+  "sourceFontSha256": "9805b1d941e67ca79d59ac2643284d6513f0dd72927bf153517863ac8d920453",
+  "patchedFontSha256": "33f0012af51098e5c4f5a65d57091233d019b7b6f0a78041f7e9eb742b6908f9",
+  "atlas": {
+    "width": 593,
+    "height": 186,
+    "rgbaSha256": "7173de73e79057f637ded36dbb2b2cf3364620e4d9e31fa7a504623a55ed7183",
+    "pngSha256": "a21d844b19843dacf3c843e526098af17df33ee24854aff9ec031a543087a16e",
+    "pngPath": null
+  }
+}

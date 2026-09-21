@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.lucky-star-psp/schemas/rgo-eboot-vwf-profile.schema.json",
+  "title": "Lucky Star RGO EBOOT VWF patch profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "profileId",
+    "game",
+    "discId",
+    "input",
+    "fullOutput",
+    "scriptSizeTable",
+    "scriptHeap",
+    "groups",
+    "patches"
+  ],
+  "properties": {
+    "schema": {
+      "const": "lucky-star-psp.rgo-eboot-vwf-profile.v1"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "game": {
+      "const": "RyououGakuenOutousaiPortable"
+    },
+    "discId": {
+      "const": "ULJM05752"
+    },
+    "input": {
+      "$ref": "#/$defs/binaryIdentity"
+    },
+    "fullOutput": {
+      "$ref": "#/$defs/binaryIdentityWithoutKind"
+    },
+    "scriptSizeTable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offset",
+        "offsetHex",
+        "firstId",
+        "lastIdInclusive",
+        "canonicalBytesHex"
+      ],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "offsetHex": {
+          "type": "string",
+          "pattern": "^0x[0-9A-F]{8}$"
+        },
+        "firstId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "lastIdInclusive": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "canonicalBytesHex": {
+          "type": "string",
+          "pattern": "^[0-9A-F]+$"
+        }
+      }
+    },
+    "scriptHeap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "luiOffset",
+        "luiOffsetHex",
+        "addiuOffset",
+        "addiuOffsetHex",
+        "originalCapacityBytes",
+        "originalCapacityHex",
+        "originalLuiInstruction",
+        "originalLuiInstructionHex",
+        "originalAddiuInstruction",
+        "originalAddiuInstructionHex",
+        "policy"
+      ],
+      "properties": {
+        "luiOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "luiOffsetHex": {
+          "type": "string",
+          "pattern": "^0x[0-9A-F]{8}$"
+        },
+        "addiuOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "addiuOffsetHex": {
+          "type": "string",
+          "pattern": "^0x[0-9A-F]{8}$"
+        },
+        "originalCapacityBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "originalCapacityHex": {
+          "type": "string",
+          "pattern": "^0x[0-9A-F]{8}$"
+        },
+        "originalLuiInstruction": {
+          "$ref": "#/$defs/uint32"
+        },
+        "originalLuiInstructionHex": {
+          "type": "string",
+          "pattern": "^0x[0-9A-F]{8}$"
+        },
+        "originalAddiuInstruction": {
+          "$ref": "#/$defs/uint32"
+        },
+        "originalAddiuInstructionHex": {
+          "type": "string",
+          "pattern": "^0x[0-9A-F]{8}$"
+        },
+        "policy": {
+          "const": "max-original-or-largest-script"
+        }
+      }
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "patchCount"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "patchCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          }
+        }
+      }
+    },
+    "patches": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "group",
+          "name",
+          "offset",
+          "offsetHex",
+          "expected",
+          "expectedHex",
+          "replacement",
+          "replacementHex"
+        ],
+        "properties": {
+          "group": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offsetHex": {
+            "type": "string",
+            "pattern": "^0x[0-9A-F]{8}$"
+          },
+          "expected": {
+            "$ref": "#/$defs/uint32"
+          },
+          "expectedHex": {
+            "type": "string",
+            "pattern": "^0x[0-9A-F]{8}$"
+          },
+          "replacement": {
+            "$ref": "#/$defs/uint32"
+          },
+          "replacementHex": {
+            "type": "string",
+            "pattern": "^0x[0-9A-F]{8}$"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uint32": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "binaryIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "size", "sha256"],
+      "properties": {
+        "kind": {
+          "const": "decrypted-elf32-mips"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "binaryIdentityWithoutKind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["size", "sha256"],
+      "properties": {
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

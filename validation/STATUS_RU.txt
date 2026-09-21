@@ -1,0 +1,6 @@
+0.10.0 — PARTIAL
+23 source/oracle groups passed; 0 failed; 10 not run.
+17 Python release-tool tests passed. C# compilation/self-tests/Roslyn/native demo/publish: NOT RUN.
+Fresh original customer archive and PPSSPP/PSP acceptance: NOT RUN.
+Current reproducible report is produced under artifacts/validation/.
+Historical versioned files in validation/ are not new execution evidence.

@@ -1,0 +1,51 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Core", "src\LuckyStarPspToolkit.Core\LuckyStarPspToolkit.Core.csproj", "{55A395B4-735E-473E-8A3D-F00C9D3B6A10}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Formats", "src\LuckyStarPspToolkit.Formats\LuckyStarPspToolkit.Formats.csproj", "{63D1B5D4-1D90-4EC5-A2D9-6723A1D2E8B1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Cli", "src\LuckyStarPspToolkit.Cli\LuckyStarPspToolkit.Cli.csproj", "{88C7AD87-C6B2-44F6-BCF6-80F7E103E21C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.SelfTests", "tests\LuckyStarPspToolkit.SelfTests\LuckyStarPspToolkit.SelfTests.csproj", "{C3A66FD6-3C49-4472-8C76-8D179FC7E3F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Formats.SelfTests", "tests\LuckyStarPspToolkit.Formats.SelfTests\LuckyStarPspToolkit.Formats.SelfTests.csproj", "{F3C8A3D5-8E4C-4E02-9CD1-67820731B70E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Documentation", "tools\LuckyStarPspToolkit.Documentation\LuckyStarPspToolkit.Documentation.csproj", "{A7A16901-0052-4564-81AC-839E5CA10010}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A7A16901-0052-4564-81AC-839E5CA10010}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7A16901-0052-4564-81AC-839E5CA10010}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7A16901-0052-4564-81AC-839E5CA10010}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7A16901-0052-4564-81AC-839E5CA10010}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55A395B4-735E-473E-8A3D-F00C9D3B6A10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55A395B4-735E-473E-8A3D-F00C9D3B6A10}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55A395B4-735E-473E-8A3D-F00C9D3B6A10}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55A395B4-735E-473E-8A3D-F00C9D3B6A10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63D1B5D4-1D90-4EC5-A2D9-6723A1D2E8B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63D1B5D4-1D90-4EC5-A2D9-6723A1D2E8B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63D1B5D4-1D90-4EC5-A2D9-6723A1D2E8B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63D1B5D4-1D90-4EC5-A2D9-6723A1D2E8B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88C7AD87-C6B2-44F6-BCF6-80F7E103E21C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88C7AD87-C6B2-44F6-BCF6-80F7E103E21C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88C7AD87-C6B2-44F6-BCF6-80F7E103E21C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88C7AD87-C6B2-44F6-BCF6-80F7E103E21C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3A66FD6-3C49-4472-8C76-8D179FC7E3F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3A66FD6-3C49-4472-8C76-8D179FC7E3F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3A66FD6-3C49-4472-8C76-8D179FC7E3F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3A66FD6-3C49-4472-8C76-8D179FC7E3F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3C8A3D5-8E4C-4E02-9CD1-67820731B70E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3C8A3D5-8E4C-4E02-9CD1-67820731B70E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3C8A3D5-8E4C-4E02-9CD1-67820731B70E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3C8A3D5-8E4C-4E02-9CD1-67820731B70E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

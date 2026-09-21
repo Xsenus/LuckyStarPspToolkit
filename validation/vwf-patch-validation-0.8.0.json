@@ -1,0 +1,76 @@
+{
+  "schema": "lucky-star-psp.rgo-eboot-vwf-validation.v1",
+  "profileId": "rgo-uljm05752-russian-vwf-v1",
+  "customerArchive": "archive.zip (customer-supplied; not packaged)",
+  "customerEncryptedSha256": "4a22c50c0a6ad6249dd1d9ab015d559b19b4acd79daf892a6f29a58648b834f0",
+  "decryptedInput": {
+    "size": 1470173,
+    "sha256": "3e6c1c2f7136a69cecda4f39835c3454b739e23e89e862fe17462cdf915581d8",
+    "crypto": {
+      "type2_sha1": "passed",
+      "kirk_header_cmac": "passed",
+      "kirk_payload_cmac": "passed",
+      "encrypted_payload_offset": 336,
+      "encrypted_payload_size": 1470176
+    }
+  },
+  "profile": {
+    "path": "profiles/rgo-uljm05752-vwf-profile.json",
+    "sha256": "690d028021f8f5057f082d56f9a95b4c28f9734c2535b5a11c51c74916d3615a",
+    "csharpSource": "src/LuckyStarPspToolkit.Core/RgoVwfPatchProfile.cs",
+    "csharpSourceSha256": "370ef85476acb3cad4ac4b8e483d3639de9bd9fa1c7e97f818499df50912dd29",
+    "csharpProfileMatches": true,
+    "patchCount": 133,
+    "groupCounts": {
+      "vwf-core": 66,
+      "message-layout": 7,
+      "speaker-layout": 50,
+      "choice-layout": 3,
+      "name-layout": 7
+    }
+  },
+  "fullPatch": {
+    "size": 1470173,
+    "sha256": "0a2ce9212c3335e17fad28d457b0caf7f25bc1b046707e0da994ee8437f7244f",
+    "appliedWords": 133,
+    "alreadyAppliedWords": 0,
+    "changedByteCount": 393,
+    "unexpectedChangedBytes": 0,
+    "idempotent": true
+  },
+  "partialPatch": {
+    "coreOnlySha256": "1038e09bad265840db0050c44006d579524e78b6d79c94bd4e6333b49c3e747e",
+    "coreAppliedWords": 66,
+    "canonicalLineage": true,
+    "completionAppliedWords": 67,
+    "completionAlreadyAppliedWords": 66,
+    "completionMatchesFullPatch": true
+  },
+  "adjustedScriptTable": {
+    "inputSha256": "cf32a198431ffad6fedf78a6da2578cb30f8b0659f49c06d0ac309b72cb96b62",
+    "outputSha256": "2853d48ab2d2ce1c9c6bb27c342403104b0f1f6d15d0f9aa870409a116dddfd8",
+    "tableConsistent": true,
+    "tablePreserved": true,
+    "canonicalLineageBefore": true,
+    "canonicalLineageAfter": true
+  },
+  "expandedScriptHeap": {
+    "originalCapacityBytes": 2318336,
+    "originalRequiredBytes": 2318336,
+    "largeScriptBlocks2K": 1200,
+    "requiredCapacityBytes": 2457600,
+    "inputSha256": "61e94aa8455b9d3b9706c306bfafc522d6fd119f88b5e29948d4a0c2c4fbef9e",
+    "outputSha256": "2f3b0b369878cb9fee9cf3d3c20fcb3881862276d85be5d9371d1dccdadebd89",
+    "canonicalLineageBefore": true,
+    "canonicalLineageAfter": true,
+    "missingHeapRejected": true,
+    "missingHeapCanonicalSha256": "09b63828aab9c2ae7ce3f5a70a4b0fc9ecd3129fe622caf77ec7354303e4d8c5"
+  },
+  "negativeTests": {
+    "patchWordTamperRejected": true,
+    "patchWordTamperError": "patch word mismatch at 0x00025CD8: expected 0x00A04825 or 0x3C080980, got 0xDEADBEEF",
+    "unrelatedTamperRejectedByLineage": true,
+    "unrelatedTamperCanonicalSha256": "cecd78bd089d26a559ff9831e056445ba2a2264ebf867ccc4b5f5b42f41ffb53"
+  },
+  "passed": true
+}

@@ -1,0 +1,25 @@
+{
+  "schema": "lucky-star-psp.customer-baseline-consistency.v1",
+  "passed": true,
+  "rawCustomerArchiveReprocessed": false,
+  "evidence": {
+    "customerBaseline": "validation/customer-validation-0.8.0.json",
+    "customerBaselineSha256": "4793f624aa606d507a01befe4b32813c4f032b9ac61be0428b2432bdaa517263",
+    "vwfBaseline": "validation/vwf-patch-validation-0.8.0.json",
+    "vwfBaselineSha256": "2ebef02655d89dc7c70dfaf94d6a9eb566b1f96e3414f6af8ac64944569873a1"
+  },
+  "revision": {
+    "discId": "ULJM05752",
+    "encryptedEbootSha256": "4a22c50c0a6ad6249dd1d9ab015d559b19b4acd79daf892a6f29a58648b834f0",
+    "decryptedEbootSha256": "3e6c1c2f7136a69cecda4f39835c3454b739e23e89e862fe17462cdf915581d8",
+    "scenarioCount": 11,
+    "finalCumulativeBlocks2K": 1800
+  },
+  "vwf": {
+    "profileId": "rgo-uljm05752-russian-vwf-v1",
+    "profileSha256": "690d028021f8f5057f082d56f9a95b4c28f9734c2535b5a11c51c74916d3615a",
+    "patchCount": 133,
+    "fullOutputSha256": "0a2ce9212c3335e17fad28d457b0caf7f25bc1b046707e0da994ee8437f7244f"
+  },
+  "note": "This check validates preserved evidence and current profiles; it does not replace a fresh run against the private archive."
+}

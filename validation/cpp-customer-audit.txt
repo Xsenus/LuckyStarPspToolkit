@@ -1,0 +1,22 @@
+RGO audit
+  status: executable-verified-resources-missing
+  game metadata ULJM05752: yes
+  game EBOOT user_main:    yes
+  zero-filled BOOT.BIN:    yes (unusable)
+  firmware update files:   yes (not translation assets)
+  sc.cpk:                   MISSING
+  lt.bin:                   MISSING
+  union.cpk:                missing
+  pr.bin:                   missing
+  EBOOT result:             Exact verified ULJM05752 executable revision
+  decrypted SHA-256:        3e6c1c2f7136a69cecda4f39835c3454b739e23e89e862fe17462cdf915581d8
+
+Required next inputs:
+  - PSP_GAME/USRDIR/DATA/sc.cpk
+  - PSP_GAME/USRDIR/DATA/lt.bin
+  - PSP_GAME/USRDIR/DATA/union.cpk (for menu/images)
+  - PSP_GAME/USRDIR/DATA/pr.bin (for interface images)
+  - complete PSP_GAME file listing with relative paths and sizes
+
+JSON report: validation/cpp-customer-audit.json
+audit exit code: 2

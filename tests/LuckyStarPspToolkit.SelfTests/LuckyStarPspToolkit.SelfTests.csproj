@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>LuckyStarPspToolkit.SelfTests</AssemblyName>
+    <RootNamespace>LuckyStarPspToolkit.SelfTests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LuckyStarPspToolkit.Core\LuckyStarPspToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>

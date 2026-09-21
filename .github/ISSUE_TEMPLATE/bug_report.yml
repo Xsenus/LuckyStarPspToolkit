@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible failure without uploading copyrighted game data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach ISO, EBOOT, CPK, PMF, firmware, commercial fonts, or translated game assets.
+  - type: input
+    id: version
+    attributes:
+      label: Toolkit version
+      placeholder: 0.9.0 / commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Windows 11 x64, .NET 9.0.x
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and complete output
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: metadata
+    attributes:
+      label: Non-copyrighted metadata
+      description: File sizes, SHA-256, DISC_ID, error code, and sanitized JSON report.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed private paths, secrets, and copyrighted game/firmware data.
+          required: true
