@@ -1,4 +1,4 @@
-# Запуск и сборка 0.10.0
+# Запуск и сборка 0.11.0
 
 ## 1. Что можно обещать заказчику
 
@@ -39,13 +39,13 @@ Visual Studio необязательна. Обычный `dotnet build LuckyStar
 После успешной команды:
 
 ```text
-artifacts/releases/0.10.0/
+artifacts/releases/0.11.0/
   win-x64/lsptool.exe
   win-x64/BUILD-STATUS.json
   win-x64/docs/
   win-x64/profiles/
-  LuckyStarPspToolkit-0.10.0-win-x64.zip
-  LuckyStarPspToolkit-0.10.0-win-x64.zip.sha256
+  LuckyStarPspToolkit-0.11.0-win-x64.zip
+  LuckyStarPspToolkit-0.11.0-win-x64.zip.sha256
   build-report.json
 ```
 
@@ -54,7 +54,7 @@ artifacts/releases/0.10.0/
 Проверьте из папки `project`:
 
 ```powershell
-$exe = '.\artifacts\releases\0.10.0\win-x64\lsptool.exe'
+$exe = '.\artifacts\releases\0.11.0\win-x64\lsptool.exe'
 & $exe version
 & $exe --help
 & $exe self-test

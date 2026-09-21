@@ -29,6 +29,8 @@ namespace LuckyStarPspToolkit.Formats.Common;
 /// <param name="MaximumIsoOutputBytes">The upper safety limit for iso output bytes; input above it is rejected.</param>
 /// <param name="MaximumGlyphMapCharacters">Maximum UTF-16 units in a decoded glyph map, including separators; bounds trie construction.</param>
 /// <param name="MaximumGlyphEntryCharacters">Maximum UTF-16 units in one glyph label or ligature.</param>
+/// <param name="MaximumUtfCells">Maximum materialized row/column cells, including implicit-zero values.</param>
+/// <param name="MaximumUtfDecodedBytes">Aggregate budget for copied UTF binary payloads and decoded strings in one table.</param>
 public sealed record FileLimits(
     long MaximumInputBytes = 4L * 1024 * 1024 * 1024,
     int MaximumUtfRows = 1_000_000,
@@ -55,7 +57,9 @@ public sealed record FileLimits(
     long MaximumIsoTotalReplacementBytes = 2L * 1024 * 1024 * 1024,
     long MaximumIsoOutputBytes = 4L * 1024 * 1024 * 1024,
     int MaximumGlyphMapCharacters = 1_000_000,
-    int MaximumGlyphEntryCharacters = 128)
+    int MaximumGlyphEntryCharacters = 128,
+    long MaximumUtfCells = 2_000_000,
+    long MaximumUtfDecodedBytes = 128L * 1024 * 1024)
 {
     /// <summary>The default conservative limits for parsing caller-supplied data.</summary>
     public static FileLimits Default { get; } = new();

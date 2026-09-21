@@ -39,8 +39,8 @@ public sealed class SfoEntry
     /// <summary>The hex value value used by this model or operation.</summary>
     public string? HexValue { get; init; }
 
-    [JsonIgnore]
     /// <summary>The display value value used by this model or operation.</summary>
+    [JsonIgnore]
     public string DisplayValue => Kind switch
     {
         SfoValueKind.Utf8String => StringValue ?? string.Empty,

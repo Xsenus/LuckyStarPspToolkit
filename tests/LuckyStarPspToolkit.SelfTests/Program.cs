@@ -6,7 +6,7 @@ namespace LuckyStarPspToolkit.SelfTests;
 /// <summary>
 /// Represents the toolkit's program model or service.
 /// </summary>
-internal static class Program
+internal static partial class Program
 {
     /// <summary>Stores the failures state owned by this instance or type.</summary>
     private static int _failures;
@@ -19,6 +19,8 @@ internal static class Program
     public static int Main(string[] args)
     {
         Run("runtime self-test", TestRuntimeSelfTest);
+        Run("streaming CMAC independent vectors and source immutability", TestCmacIndependentVectors);
+        Run("streaming CMAC pooled allocation bound", TestCmacAllocation);
         Run("ZIP path traversal rejection", TestZipTraversalRejected);
         Run("ZIP case-insensitive duplicate rejection", TestZipDuplicateRejected);
         Run("truncated SFO rejection", TestTruncatedSfoRejected);

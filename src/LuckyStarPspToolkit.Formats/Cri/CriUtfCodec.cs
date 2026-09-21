@@ -93,16 +93,16 @@ public static class CriUtfCodec
 
         BinarySpanReader header = new(input, 4);
         uint tableSizeField = header.ReadUInt32BigEndian();
-        int declaredLength = checked((int)tableSizeField + 8);
+        int declaredLength = Guard.CheckedInt((long)tableSizeField + 8, "UTF_TABLE_SIZE", "UTF table length");
         if (declaredLength < 32 || declaredLength > input.Length)
         {
             throw new ToolkitException("UTF_TABLE_SIZE", $"CRI UTF declared length {declaredLength} is invalid for {input.Length} bytes.");
         }
 
         ReadOnlySpan<byte> data = input[..declaredLength];
-        int rowsOffset = checked((int)header.ReadUInt32BigEndian() + 8);
-        int stringsOffset = checked((int)header.ReadUInt32BigEndian() + 8);
-        int dataOffset = checked((int)header.ReadUInt32BigEndian() + 8);
+        int rowsOffset = Guard.CheckedInt((long)header.ReadUInt32BigEndian() + 8, "UTF_OFFSET", "rows offset");
+        int stringsOffset = Guard.CheckedInt((long)header.ReadUInt32BigEndian() + 8, "UTF_OFFSET", "strings offset");
+        int dataOffset = Guard.CheckedInt((long)header.ReadUInt32BigEndian() + 8, "UTF_OFFSET", "data offset");
         uint tableNameOffset = header.ReadUInt32BigEndian();
         ushort columnCount = header.ReadUInt16BigEndian();
         ushort rowLength = header.ReadUInt16BigEndian();
@@ -117,7 +117,13 @@ public static class CriUtfCodec
             throw new ToolkitException("UTF_ROW_LIMIT", $"CRI UTF row count {rowCount32} exceeds limit {limits.MaximumUtfRows}.");
         }
 
-        int rowCount = checked((int)rowCount32);
+        long cells = (long)Math.Max(1, (int)columnCount) * rowCount32;
+        if (limits.MaximumUtfCells < 0 || cells > limits.MaximumUtfCells)
+        {
+            throw new ToolkitException("UTF_CELL_LIMIT", $"UTF table would materialize {cells} cells; limit is {limits.MaximumUtfCells}.");
+        }
+        UtfAllocationBudget budget = new(limits.MaximumUtfDecodedBytes);
+        int rowCount = Guard.CheckedInt(rowCount32, "UTF_ROW_LIMIT", "row count");
         ValidateOffset(rowsOffset, declaredLength, "rows");
         ValidateOffset(stringsOffset, declaredLength, "strings");
         ValidateOffset(dataOffset, declaredLength, "data");
@@ -131,7 +137,7 @@ public static class CriUtfCodec
             throw new ToolkitException("UTF_ROWS_RANGE", $"CRI UTF rows end at {rowsEnd}, strings begin at {stringsOffset}.");
         }
 
-        string tableName = ReadString(data, stringsOffset, dataOffset, tableNameOffset, "table name");
+        string tableName = ReadString(data, stringsOffset, dataOffset, tableNameOffset, "table name", budget);
         CriUtfTable table = new()
         {
             Name = tableName,
@@ -152,7 +158,7 @@ public static class CriUtfCodec
             };
             CriUtfType type = ParseType((byte)(flags & 0x0F), i);
             uint nameOffset = columnsReader.ReadUInt32BigEndian();
-            string name = ReadString(data, stringsOffset, dataOffset, nameOffset, $"column {i} name");
+            string name = ReadString(data, stringsOffset, dataOffset, nameOffset, $"column {i} name", budget);
             if (name.Length == 0 || name.IndexOf('\0') >= 0)
             {
                 throw new ToolkitException("UTF_COLUMN_NAME", $"CRI UTF column {i} has an invalid name.");
@@ -171,7 +177,7 @@ public static class CriUtfCodec
             };
             if (storage == CriUtfStorage.Constant)
             {
-                column.ConstantValue = ReadValue(ref columnsReader, data, stringsOffset, dataOffset, type, $"constant '{name}'");
+                column.ConstantValue = ReadValue(ref columnsReader, data, stringsOffset, dataOffset, type, $"constant '{name}'", budget);
             }
             table.Columns.Add(column);
         }
@@ -197,8 +203,8 @@ public static class CriUtfCodec
                 CriUtfValue value = column.Storage switch
                 {
                     CriUtfStorage.Zero => new CriUtfValue(),
-                    CriUtfStorage.Constant => column.ConstantValue.Clone(),
-                    CriUtfStorage.PerRow => ReadValue(ref rowReader, data, stringsOffset, dataOffset, column.Type, $"row {rowIndex}, column '{column.Name}'"),
+                    CriUtfStorage.Constant => CloneConstant(column.ConstantValue, budget),
+                    CriUtfStorage.PerRow => ReadValue(ref rowReader, data, stringsOffset, dataOffset, column.Type, $"row {rowIndex}, column '{column.Name}'", budget),
                     _ => throw new ToolkitException("UTF_STORAGE", "Unsupported CRI UTF storage mode.")
                 };
                 row.Values.Add(value);
@@ -393,8 +399,9 @@ public static class CriUtfCodec
     /// <param name="dataOffset">The data offset value.</param>
     /// <param name="type">The type value.</param>
     /// <param name="context">A diagnostic label included in validation errors.</param>
+    /// <param name="budget">Shared table-wide allocation allowance, charged before copies are created.</param>
     /// <returns>The validated operation result.</returns>
-    private static CriUtfValue ReadValue(ref BinarySpanReader reader, ReadOnlySpan<byte> table, int stringsOffset, int dataOffset, CriUtfType type, string context)
+    private static CriUtfValue ReadValue(ref BinarySpanReader reader, ReadOnlySpan<byte> table, int stringsOffset, int dataOffset, CriUtfType type, string context, UtfAllocationBudget budget)
     {
         return type switch
         {
@@ -403,8 +410,8 @@ public static class CriUtfCodec
             CriUtfType.UInt32 or CriUtfType.Int32 => CriUtfValue.FromUnsigned(reader.ReadUInt32BigEndian()),
             CriUtfType.UInt64 or CriUtfType.Int64 => CriUtfValue.FromUnsigned(reader.ReadUInt64BigEndian()),
             CriUtfType.Single => CriUtfValue.FromSingle(BitConverter.Int32BitsToSingle(unchecked((int)reader.ReadUInt32BigEndian()))),
-            CriUtfType.String => CriUtfValue.FromText(ReadString(table, stringsOffset, dataOffset, reader.ReadUInt32BigEndian(), context)),
-            CriUtfType.Data => ReadData(ref reader, table, dataOffset, context),
+            CriUtfType.String => CriUtfValue.FromText(ReadString(table, stringsOffset, dataOffset, reader.ReadUInt32BigEndian(), context, budget)),
+            CriUtfType.Data => ReadData(ref reader, table, dataOffset, context, budget),
             _ => throw new ToolkitException("UTF_TYPE", $"Unsupported CRI UTF type in {context}.")
         };
     }
@@ -416,18 +423,21 @@ public static class CriUtfCodec
     /// <param name="table">The table value.</param>
     /// <param name="dataOffset">The data offset value.</param>
     /// <param name="context">A diagnostic label included in validation errors.</param>
+    /// <param name="budget">Shared table-wide allocation allowance, charged before copies are created.</param>
     /// <returns>The validated operation result.</returns>
-    private static CriUtfValue ReadData(ref BinarySpanReader reader, ReadOnlySpan<byte> table, int dataOffset, string context)
+    private static CriUtfValue ReadData(ref BinarySpanReader reader, ReadOnlySpan<byte> table, int dataOffset, string context, UtfAllocationBudget budget)
     {
         uint relativeOffset = reader.ReadUInt32BigEndian();
         uint length32 = reader.ReadUInt32BigEndian();
-        int length = checked((int)length32);
+        int length = Guard.CheckedInt(length32, "UTF_DATA_RANGE", "data length");
         long absolute = (long)dataOffset + relativeOffset;
         if (absolute < 0 || absolute > table.Length - length)
         {
             throw new ToolkitException("UTF_DATA_RANGE", $"Data value in {context} points outside the CRI UTF table.");
         }
-        return CriUtfValue.FromData(table.Slice((int)absolute, length).ToArray());
+        budget.Charge(length, context);
+        // This is already a fresh owned buffer; FromData would make an unnecessary second copy.
+        return new CriUtfValue { Data = table.Slice((int)absolute, length).ToArray() };
     }
 
     /// <summary>
@@ -438,8 +448,9 @@ public static class CriUtfCodec
     /// <param name="dataOffset">The data offset value.</param>
     /// <param name="relativeOffset">The relative offset value.</param>
     /// <param name="context">A diagnostic label included in validation errors.</param>
+    /// <param name="budget">Shared table-wide allocation allowance, charged before copies are created.</param>
     /// <returns>The resulting text, path, identifier, or hexadecimal digest.</returns>
-    private static string ReadString(ReadOnlySpan<byte> table, int stringsOffset, int dataOffset, uint relativeOffset, string context)
+    private static string ReadString(ReadOnlySpan<byte> table, int stringsOffset, int dataOffset, uint relativeOffset, string context, UtfAllocationBudget budget)
     {
         long absolute64 = (long)stringsOffset + relativeOffset;
         if (absolute64 < stringsOffset || absolute64 >= dataOffset)
@@ -458,6 +469,8 @@ public static class CriUtfCodec
         }
         try
         {
+            // Two UTF-16 bytes per source byte is a conservative upper bound for valid UTF-8.
+            budget.Charge((long)(end - absolute) * 2, context);
             string value = new UTF8Encoding(false, true).GetString(table[absolute..end]);
             if (value.IndexOf('\0') >= 0)
             {
@@ -646,4 +659,39 @@ public static class CriUtfCodec
         /// <returns>The resulting binary or typed sequence.</returns>
         public byte[] ToArray() => _bytes.ToArray();
     }
+    /// <summary>Copies mutable constant payloads only after charging every per-row materialization.</summary>
+    /// <param name="value">The constant's decoded value; text is immutable, but binary buffers must not alias.</param>
+    /// <param name="budget">The aggregate decoded-data allowance for this table.</param>
+    /// <returns>An independent mutable value with a separately owned binary buffer.</returns>
+    private static CriUtfValue CloneConstant(CriUtfValue value, UtfAllocationBudget budget)
+    {
+        budget.Charge(value.Data.Length, "constant row clone");
+        return value.Clone();
+    }
+
+    /// <summary>Prevents short UTF tables from expanding repeated blob references into unbounded memory.</summary>
+    private sealed class UtfAllocationBudget
+    {
+        /// <summary>Remaining permitted bytes of decoded strings and owned binary buffers.</summary>
+        private long _remaining;
+
+        /// <summary>Starts a positive allocation allowance before any variable-sized value is copied.</summary>
+        /// <param name="maximum">The configured table-wide decoded-byte limit.</param>
+        internal UtfAllocationBudget(long maximum)
+        {
+            if (maximum < 0) throw new ToolkitException("UTF_ALLOCATION_LIMIT", "UTF allocation limit must be non-negative.");
+            _remaining = maximum;
+        }
+
+        /// <summary>Reserves bytes before allocation and rejects a request that exceeds the remaining budget.</summary>
+        /// <param name="bytes">The number of decoded or copied bytes about to be materialized.</param>
+        /// <param name="context">The field or operation reported when its allocation is refused.</param>
+        internal void Charge(long bytes, string context)
+        {
+            if (bytes < 0 || bytes > _remaining)
+                throw new ToolkitException("UTF_ALLOCATION_LIMIT", $"Decoded-data budget exhausted by {context} ({bytes} bytes requested).");
+            _remaining -= bytes;
+        }
+    }
+
 }

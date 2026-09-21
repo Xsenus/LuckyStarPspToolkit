@@ -56,9 +56,9 @@ public sealed class ScriptDialog
     /// <summary>The original scenario terminator; translators must not change this structural code.</summary>
     public required ushort MessageTerminator { get; init; }
     /// <summary>The absolute start value used by this model or operation.</summary>
-    internal required int AbsoluteStart { get; init; }
+    internal int AbsoluteStart { get; init; } = -1;
     /// <summary>The absolute end value used by this model or operation.</summary>
-    internal required int AbsoluteEnd { get; init; }
+    internal int AbsoluteEnd { get; init; } = -1;
 }
 
 /// <summary>
@@ -75,9 +75,9 @@ public sealed class ScriptChoice
     /// <summary>The glyphs value used by this model or operation.</summary>
     public required ushort[] Glyphs { get; init; }
     /// <summary>The absolute start value used by this model or operation.</summary>
-    internal required int AbsoluteStart { get; init; }
+    internal int AbsoluteStart { get; init; } = -1;
     /// <summary>The absolute end value used by this model or operation.</summary>
-    internal required int AbsoluteEnd { get; init; }
+    internal int AbsoluteEnd { get; init; } = -1;
 }
 
 /// <summary>
@@ -102,6 +102,7 @@ public sealed class ScriptMutation
     public Dictionary<int, ushort[]> SpeakerGlyphs { get; } = [];
     /// <summary>The message glyphs value used by this model or operation.</summary>
     public Dictionary<int, ushort[]> MessageGlyphs { get; } = [];
+    /// <summary>Replacement glyph indices keyed by the original group and choice positions; absent keys preserve source text.</summary>
     public Dictionary<(int Group, int Choice), ushort[]> ChoiceGlyphs { get; } = [];
 }
 

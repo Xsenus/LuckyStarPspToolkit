@@ -420,7 +420,8 @@ public sealed class LtFont
         {
             string character = rune.ToString();
             int? index = null;
-            bool mapped = map is not null && map.TryGetLowestIndex(character, out ushort mappedIndex);
+            ushort mappedIndex = 0;
+            bool mapped = map is not null && map.TryGetLowestIndex(character, out mappedIndex);
             if (mapped)
             {
                 index = mappedIndex;

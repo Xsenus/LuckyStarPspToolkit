@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Create one SOURCE handoff ZIP, with a clean publication Git snapshot and explicit test evidence.
+"""Create one source handoff ZIP with audited Git lineage and explicit execution evidence.
 
-Never package historical Git blobs, fonts, game files or prebuilt executables.
-The publication bundle starts a NEW snapshot history; original development
-commit IDs and a text-only diff are retained separately, not misrepresented.
+Every reachable Git tree is checked before bundling: deleted font/game/binary
+assets are forbidden too. History starts at the supplied clean 0.10.0 snapshot;
+no earlier private development history is reconstructed or invented.
 """
 from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -20,6 +19,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from build_release import package_directory, digest, ensure_regular_tree, write_json  # noqa: E402
+from managed_evidence import execution_input_hashes, validate_evidence  # noqa: E402
 
 FORBIDDEN = {'.exe', '.dll', '.pdb', '.so', '.dylib', '.bin', '.cpk', '.iso', '.cso',
              '.pmf', '.sfo', '.prx', '.elf', '.zip', '.bundle', '.7z', '.rar', '.ttf', '.otf', '.bdf', '.woff', '.woff2', '.rgba'}
@@ -72,23 +72,33 @@ def export_source(destination: Path) -> dict[str, str]:
     return files
 
 
-def snapshot_bundle(project: Path, bundle: Path, version: str, development_commit: str) -> str:
-    """Bundle a clean source snapshot without importing past binary/font blobs from development history."""
-    git('init', '-b', 'main', cwd=project)
-    environment = {**os.environ, 'GIT_AUTHOR_NAME': 'LuckyStar Toolkit', 'GIT_AUTHOR_EMAIL': 'maintainer@example.invalid',
-                   'GIT_COMMITTER_NAME': 'LuckyStar Toolkit', 'GIT_COMMITTER_EMAIL': 'maintainer@example.invalid',
-                   'GIT_AUTHOR_DATE': '2026-09-21T00:00:00Z', 'GIT_COMMITTER_DATE': '2026-09-21T00:00:00Z'}
-    git('add', '.', cwd=project)
-    for script in sorted(project.rglob('*.sh')):
-        git('update-index', '--chmod=+x', '--', script.relative_to(project).as_posix(), cwd=project)
-    git('commit', '-m', f'Source snapshot {version}; development origin {development_commit}', cwd=project, environment=environment)
-    commit = git('rev-parse', 'HEAD', cwd=project).decode().strip()
-    git('bundle', 'create', str(bundle), '--all', cwd=project)
-    git('bundle', 'verify', str(bundle), cwd=project)
-    # Leave the source folder clean and usable without Git; the optional snapshot is separate.
-    import shutil
-    shutil.rmtree(project / '.git')
-    return commit
+def audit_history(repository: Path) -> list[str]:
+    """Reject forbidden or linked entries in every reachable commit, including files deleted later."""
+    commits = git('rev-list', '--reverse', '--all', cwd=repository).decode('ascii').splitlines()
+    if not commits:
+        raise ValueError('Cannot package empty Git history.')
+    for commit in commits:
+        for entry in git('ls-tree', '-r', '-z', commit, cwd=repository).split(b'\0'):
+            if not entry:
+                continue
+            descriptor, name = entry.split(b'\t', 1)
+            mode, kind, _ = descriptor.decode('ascii').split()
+            check_source_name(name.decode('utf-8'))
+            if kind != 'blob' or mode not in {'100644', '100755'}:
+                raise ValueError(f'Non-regular historical entry in {commit}: {name!r}')
+    return commits
+
+
+def history_bundle(repository: Path, bundle: Path, version: str, commit: str) -> list[str]:
+    """Preserve verified supplied lineage instead of resetting history for each new release."""
+    commits = audit_history(repository)
+    if git('rev-parse', 'main', cwd=repository).decode().strip() != commit:
+        raise ValueError('main must point to the reviewed release commit.')
+    if git('rev-parse', f'v{version}^{{commit}}', cwd=repository).decode().strip() != commit:
+        raise ValueError('Release tag must point to the reviewed release commit.')
+    git('bundle', 'create', str(bundle), '--all', cwd=repository)
+    git('bundle', 'verify', str(bundle), cwd=repository)
+    return commits
 
 
 def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
@@ -101,10 +111,12 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
     development = git('rev-parse', 'HEAD').decode().strip()
     report_path = ROOT / 'artifacts/validation/validation-summary.json'
     report = json.loads(report_path.read_text(encoding='utf-8'))
+    if report.get('version') != version or report.get('inputHashes') != execution_input_hashes(ROOT):
+        raise RuntimeError('Validation does not match this source/version; run the gate again.')
     if report['status'] == 'failed':
         raise RuntimeError('Validation contains failures; source cannot be released.')
     if report['status'] != 'passed' and not allow_partial:
-        raise RuntimeError('Use --allow-partial explicitly for an uncompiled source preview.')
+        raise RuntimeError('Use --allow-partial explicitly for a source preview with incomplete native/game validation.')
     output = output.resolve()
     ensure_regular_tree(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -122,34 +134,47 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
             target = reports / relative; target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(path.read_bytes())
         (reports / 'DEVELOPMENT_HISTORY.txt').write_bytes(git('log', '--format=%H %s', '--reverse', 'HEAD'))
-        (reports / 'CHANGES_FROM_0.9.0.patch').write_bytes(git('diff', '--no-ext-diff', previous_tag, 'HEAD', '--', 'src', 'tests', 'scripts', 'tools', 'Directory.Build.props', 'NuGet.Config', '.github'))
+        previous_version = git('show', f'{previous_tag}:VERSION').decode().strip()
+        if not re.fullmatch(r'\d+\.\d+\.\d+', previous_version):
+            raise ValueError('Invalid previous version')
+        (reports / f'CHANGES_FROM_{previous_version}.patch').write_bytes(git('diff', '--no-ext-diff', previous_tag, 'HEAD', '--', 'src', 'tests', 'scripts', 'tools', 'Directory.Build.props', 'NuGet.Config', '.github'))
         history = root / 'git'; history.mkdir()
-        bundle = history / f'LuckyStarPspToolkit-{version}-publication-snapshot.bundle'
-        snapshot = snapshot_bundle(project, bundle, version, development)
+        bundle = history / f'LuckyStarPspToolkit-{version}.git.bundle'
+        commits = history_bundle(ROOT, bundle, version, development)
         (history / 'README_RU.txt').write_text(
-            'Это новый чистый Git-снимок для публикации, ветка main. Не полная старая история.\n'
-            'Старые бинарные/шрифтовые эталоны в bundle не переносятся.\n'
-            'Исходный development commit: ' + development + '\n'
-            'Snapshot commit: ' + snapshot + '\n'
-            'Восстановление: git clone <этот.bundle> LuckyStarPspToolkit\n'
-            'Удалите локальный bundle origin и добавьте свой URL. Тег создайте после зелёного CI.\n', encoding='utf-8')
-        manifest = {'schema': 'lsptool.source-handoff.v2', 'version': version,
-                    'developmentCommit': development, 'publicationSnapshotCommit': snapshot,
-                    'publicationBundleIsFullDevelopmentHistory': False,
+            'История продолжена от переданного чистого Git-снимка 0.10.0, без сброса.\n'
+            'Это не восстановление прежней приватной истории 0.1–0.9.\n'
+            'Все исторические деревья проверены на запрещённые шрифтовые/игровые/бинарные файлы.\n'
+            'Commit: ' + development + '\n'
+            'Восстановление: git clone <этот.git.bundle> LuckyStarPspToolkit\n'
+            'Ветка main и тег v' + version + ' указывают на эту поставку.\n'
+            'Сначала push main и проверка Windows/Linux CI; затем push существующего тега.\n', encoding='utf-8')
+        manifest = {'schema': 'lsptool.source-handoff.v3', 'version': version,
+                    'developmentCommit': development, 'publicationCommit': development,
+                    'historyScope': 'Supplied clean 0.10.0 snapshot and its actual descendants only',
+                    'publicationBundleIsFullDevelopmentHistory': False, 'preservesSuppliedHistory': True,
+                    'historyCommits': commits,
                     'validationStatus': report['status'], 'compiledBinariesIncluded': False,
                     'fontFilesIncluded': False, 'customerFilesIncluded': False,
-                    'sourceFiles': files, 'snapshotBundleSha256': digest(bundle)}
+                    'sourceFiles': files, 'gitBundleSha256': digest(bundle)}
         write_json(root / 'MANIFEST.json', manifest)
+        managed_path = ROOT / 'artifacts/validation/managed-fallback/managed-fallback-report.json'
+        managed_line = 'Дополнительный прогон C# в альтернативной среде в этой поставке не зафиксирован.\n'
+        if managed_path.is_file():
+            validate_evidence(ROOT, managed_path)
+            managed_line = ('Реальный C# скомпилирован через Roslyn и протестирован на альтернативном .NET-хосте.\n'
+                            'Это НЕ .NET 9 SDK build и НЕ проверка Windows/PSP.\n')
         (root / 'START_HERE_RU.md').write_text(
-            '# Полный исходный комплект 0.10.0\n\n'
+            f'# Полный исходный комплект {version}\n\n'
             'Начните с project/START_HERE_RU.md и project/docs/USAGE_RU.md.\n'
-            'C# в среде подготовки НЕ скомпилирован; готового EXE в архиве нет.\n'
-            'Проверки, реально выполненные здесь: reports/validation-summary.json.\n'
-            'Сборка на Windows: из project выполнить build.cmd --rids win-x64.\n'
-            'После успешной сборки доступны ZIP и EXE в project/artifacts/releases/0.10.0.\n'
-            'Сценарий показа: project/docs/CUSTOMER_DEMO_RU.md.\n'
-            'GitHub: project/docs/GITHUB_PUBLISH_RU.md. Правовой обзор: THIRD_PARTY_NOTICES.md.\n'
-            'Git bundle в git/ — очищенный снимок, а не полная старая история.\n', encoding='utf-8')
+            + managed_line +
+            'Готовых EXE/DLL, чужого runtime/компилятора, игровых и шрифтовых файлов нет.\n'
+            'Проверки: reports/validation-summary.json и reports/managed-fallback/.\n'
+            'Сборка Windows: из project выполнить build.cmd --rids win-x64.\n'
+            f'После УСПЕШНОЙ native-сборки ZIP и EXE: project/artifacts/releases/{version}.\n'
+            'Показ заказчику: project/docs/CUSTOMER_DEMO_RU.md.\n'
+            'GitHub: project/docs/GITHUB_PUBLISH_RU.md. Происхождение: project/THIRD_PARTY_NOTICES.md.\n'
+            'Git bundle сохраняет переданную историю от чистого снимка 0.10.0 и новые коммиты.\n', encoding='utf-8')
         checksum_lines = [f'{digest(p)}  {p.relative_to(root).as_posix()}\n' for p in sorted(root.rglob('*')) if p.is_file()]
         (root / 'CHECKSUMS.sha256').write_text(''.join(checksum_lines), encoding='utf-8')
         package_directory(root, output / name)
@@ -163,7 +188,7 @@ def main() -> int:
     """Parse source-handoff options; report errors without creating a fake binary release."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', required=True, type=Path)
-    parser.add_argument('--previous-tag', default='v0.9.0')
+    parser.add_argument('--previous-tag', default='5d4a4f0')
     parser.add_argument('--allow-partial', action='store_true')
     args = parser.parse_args()
     try:

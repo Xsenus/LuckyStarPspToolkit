@@ -1,4 +1,4 @@
-# Testing and acceptance — 0.10.0
+# Testing and acceptance — 0.11.0
 
 ## Distinct layers, distinct evidence
 
@@ -38,8 +38,26 @@ All explicitly named types, methods, constructors, local functions, fields, prop
 
 ## Performance
 
-No new benchmark of real game archives was run. 0.10.0 removes a redundant glyph-map sort and avoids separate hash/decode/copy reads of a map. Strict duplicate-key JSON parsing uses a validation pass followed by deserialization: the additional O(n) pass trades a small amount of CPU for unambiguous manifests. Input limits bound memory, but no numeric throughput guarantee is claimed. Profile on real data before promising an SLA.
+No throughput benchmark on real game archives was run. The new warm-pool AES-CMAC
+regression measured 1,392 managed allocated bytes for a 4 MiB message on the recorded
+alternate host. That number excludes the existing input, initial pool buffers, native
+cryptography and total process RSS; it is not a general RAM or performance guarantee.
+The implementation uses 64 KiB chunks instead of multiple message-sized copies.
+UTF tables now cap cell count and materialized binary/string data before allocations.
+Earlier redundant glyph-map passes remain removed. Strict duplicate-key JSON parsing
+retains an additional O(n) validation pass to avoid ambiguous manifests.
 
-### Ограничения карты глифов в 0.10.0
+### Ограничения карты глифов в 0.11.0
 
 Помимо байтового лимита, входной карте задаются предел 1 000 000 UTF-16 единиц и 128 единиц на одну метку глифа. Количество строк и длина меток проверяются до `Split`/построения trie; это предотвращает непропорциональное выделение памяти для огромной строки или миллионов пустых строк. Пределы настраиваются в `FileLimits`. Это защитные ограничения, а не измеренная гарантия расхода RAM или времени.
+
+## Executed alternate-host checks in 0.11.0
+
+`verify_roslyn.py` now compiles and invokes the real C# source via an already installed
+PowerShell/Roslyn environment. It records the actual compiler, runtime/reference version,
+source fingerprints and subprocess exit codes. This is separate evidence, NOT a successful
+.NET 9 SDK build. Do not mix these results with the native release matrix.
+
+The new regressions cover constant-memory CMAC, 81 independent tags, two-target cleanup
+failure, overlapping transaction paths, UTF amplification budgets and 512 malformed headers.
+See TEST_REPORT_RU.md for actual observations and unexecuted checks.

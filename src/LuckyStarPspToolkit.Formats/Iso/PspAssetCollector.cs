@@ -80,8 +80,8 @@ public sealed class PspAssetBundleReport
     /// <summary>The output sha256 value used by this model or operation.</summary>
     public string? OutputSha256 { get; set; }
 
-    [JsonIgnore]
     /// <summary>The complete value used by this model or operation.</summary>
+    [JsonIgnore]
     public bool Complete => MissingRequired.Count == 0;
 }
 

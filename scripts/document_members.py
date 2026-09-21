@@ -114,6 +114,8 @@ def has_summary(lines: list[str], index: int) -> bool:
     while cursor >= 0 and lines[cursor].lstrip().startswith('///'):
         block.append(lines[cursor])
         cursor -= 1
+    if cursor >= 0 and lines[cursor].lstrip().startswith('['):
+        return False  # A summary after an attribute is ignored by the C# compiler.
     return '<summary>' in '\n'.join(block) and '</summary>' in '\n'.join(block)
 
 

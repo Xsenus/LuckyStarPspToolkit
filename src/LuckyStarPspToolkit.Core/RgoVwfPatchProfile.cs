@@ -121,8 +121,8 @@ public sealed class RgoVwfPatchInspection
     /// <summary>The message value used by this model or operation.</summary>
     public required string Message { get; init; }
 
-    [JsonIgnore]
     /// <summary>The decrypted elf value used by this model or operation.</summary>
+    [JsonIgnore]
     public required byte[] DecryptedElf { get; init; }
 }
 
@@ -172,12 +172,12 @@ public sealed class RgoVwfPatchResult
     /// <summary>The applied patches value used by this model or operation.</summary>
     public required IReadOnlyList<AppliedBinaryPatch> AppliedPatches { get; init; }
 
-    [JsonIgnore]
     /// <summary>The decrypted input value used by this model or operation.</summary>
+    [JsonIgnore]
     public required byte[] DecryptedInput { get; init; }
 
-    [JsonIgnore]
     /// <summary>The output value used by this model or operation.</summary>
+    [JsonIgnore]
     public required byte[] Output { get; init; }
 }
 

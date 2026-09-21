@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
@@ -349,40 +350,57 @@ public static class CryptoUtilities
         return Aes128CbcTransform(ciphertext, key, encrypt: false);
     }
 
-    /// <summary>
-    /// Authenticates a byte sequence with AES-CMAC, including empty and partial final blocks.
-    /// </summary>
-    /// <param name="message">The diagnostic message used when validation fails.</param>
-    /// <param name="key">The key value.</param>
-    /// <returns>The resulting binary or typed sequence.</returns>
+    /// <summary>Computes AES-128-CMAC without copying the entire message into temporary arrays.</summary>
+    /// <param name="message">The authenticated bytes; may be empty or end in a partial AES block.</param>
+    /// <param name="key">Exactly 16 bytes of AES key material.</param>
+    /// <returns>The 16-byte authentication tag.</returns>
+    /// <exception cref="ToolkitException">The key is not 16 bytes long.</exception>
+    /// <remarks>Only the final block is padded/XORed with a CMAC subkey. CBC state is retained across 64-KiB chunks. Pooled buffers and derived keys are cleared on every exit.</remarks>
     public static byte[] Aes128Cmac(ReadOnlySpan<byte> message, ReadOnlySpan<byte> key)
     {
         Guard.Require(key.Length == 16, "AES-CMAC requires a 16-byte key.");
-
-        byte[] zero = new byte[16];
-        byte[] encryptedZero = Aes128CbcEncrypt(zero, key);
+        const int ChunkSize = 64 * 1024;
+        byte[] encryptedZero = Aes128CbcEncrypt(new byte[16], key);
         byte[] k1 = DeriveCmacSubkey(encryptedZero);
         byte[] k2 = DeriveCmacSubkey(k1);
-
-        bool completeLastBlock = message.Length > 0 && message.Length % 16 == 0;
-        int blockCount = message.Length == 0 ? 1 : checked((message.Length + 15) / 16);
-        byte[] transformed = new byte[checked(blockCount * 16)];
-        message.CopyTo(transformed);
-
-        int lastBlockOffset = transformed.Length - 16;
-        ReadOnlySpan<byte> subkey = completeLastBlock ? k1 : k2;
-        if (!completeLastBlock)
+        byte[] input = ArrayPool<byte>.Shared.Rent(ChunkSize);
+        byte[] output = ArrayPool<byte>.Shared.Rent(ChunkSize);
+        try
         {
-            transformed[message.Length] = 0x80;
+            using Aes aes = Aes.Create();
+            aes.Key = key.ToArray();
+            aes.IV = new byte[16];
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            using ICryptoTransform transform = aes.CreateEncryptor();
+            // Leave at least one byte for final-block processing, even at a block boundary.
+            int prefixLength = message.IsEmpty ? 0 : (message.Length - 1) / 16 * 16;
+            int consumed = 0;
+            while (consumed < prefixLength)
+            {
+                int count = Math.Min(ChunkSize, prefixLength - consumed);
+                message.Slice(consumed, count).CopyTo(input);
+                int written = transform.TransformBlock(input, 0, count, output, 0);
+                Guard.Require(written == count, "AES-CMAC CBC transform returned an unexpected block length.");
+                consumed += count;
+            }
+            Array.Clear(input, 0, 16);
+            ReadOnlySpan<byte> tail = message[prefixLength..];
+            tail.CopyTo(input);
+            bool complete = tail.Length == 16;
+            if (!complete) input[tail.Length] = 0x80;
+            byte[] subkey = complete ? k1 : k2;
+            for (int index = 0; index < 16; index++) input[index] ^= subkey[index];
+            return transform.TransformFinalBlock(input, 0, 16);
         }
-
-        for (int index = 0; index < 16; index++)
+        finally
         {
-            transformed[lastBlockOffset + index] ^= subkey[index];
+            CryptographicOperations.ZeroMemory(encryptedZero);
+            CryptographicOperations.ZeroMemory(k1);
+            CryptographicOperations.ZeroMemory(k2);
+            ArrayPool<byte>.Shared.Return(input, clearArray: true);
+            ArrayPool<byte>.Shared.Return(output, clearArray: true);
         }
-
-        byte[] encrypted = Aes128CbcEncrypt(transformed, key);
-        return encrypted[^16..];
     }
 
     /// <summary>

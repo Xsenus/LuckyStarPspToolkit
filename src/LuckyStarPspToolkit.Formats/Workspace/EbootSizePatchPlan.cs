@@ -60,9 +60,9 @@ public sealed class EbootSizePatchPlan
         (int tableOffset, ushort first, ushort last, string? hash) = profile.Game switch
         {
             LuckyStarGame.RyououGakuenOutousaiPortable =>
-                (0x10319E, 0, 10, KnownRgoDecryptedEbootSha256),
+                (0x10319E, (ushort)0, (ushort)10, KnownRgoDecryptedEbootSha256),
             LuckyStarGame.NetIdolMeister =>
-                (0x14C466, 0, 594, null),
+                (0x14C466, (ushort)0, (ushort)594, null),
             _ => throw new ToolkitException("EBOOT_PROFILE", $"Unsupported game profile {profile.Game}.")
         };
         EbootSizePatchPlan plan = new()
@@ -273,8 +273,8 @@ public sealed class EbootSizePatchPlan
     {
         (int expectedOffset, ushort expectedFirst, ushort expectedLast) = game switch
         {
-            LuckyStarGame.RyououGakuenOutousaiPortable => (0x10319E, 0, 10),
-            LuckyStarGame.NetIdolMeister => (0x14C466, 0, 594),
+            LuckyStarGame.RyououGakuenOutousaiPortable => (0x10319E, (ushort)0, (ushort)10),
+            LuckyStarGame.NetIdolMeister => (0x14C466, (ushort)0, (ushort)594),
             _ => throw new ToolkitException("EBOOT_PLAN_GAME", $"Unsupported EBOOT plan game '{Game}'.")
         };
         if (TableOffset != expectedOffset || FirstId != expectedFirst || LastIdInclusive != expectedLast)

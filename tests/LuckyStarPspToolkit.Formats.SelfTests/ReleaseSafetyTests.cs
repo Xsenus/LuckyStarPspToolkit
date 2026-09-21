@@ -67,4 +67,43 @@ internal static partial class SelfTestRunner
             workspace, source, workspace + ".patched.cpk", Path.Combine(workspace, "glyph-map.txt")));
         Equal(false, Directory.Exists(workspace));
     }
+    /// <summary>Injects a failure deleting the second obsolete backup and verifies both newly committed files remain intact.</summary>
+    private static void TestBackupCleanupFailure()
+    {
+        WithTemporaryDirectory(root =>
+        {
+            string one = Path.Combine(root, "one.txt");
+            string two = Path.Combine(root, "two.txt");
+            File.WriteAllText(one, "old-one");
+            File.WriteAllText(two, "old-two");
+            int deletes = 0;
+            AtomicFile.WriteAllCore(
+                [new(one, "new-one"u8.ToArray()), new(two, "new-two"u8.ToArray())],
+                path =>
+                {
+                    if (++deletes == 2) throw new IOException("Injected backup deletion failure");
+                    File.Delete(path);
+                });
+            Equal(2, deletes);
+            Equal("new-one", File.ReadAllText(one));
+            Equal("new-two", File.ReadAllText(two));
+            string[] backups = Directory.GetFiles(root, "*.bak");
+            Equal(1, backups.Length);
+            Equal("old-two", File.ReadAllText(backups[0]));
+            Equal(0, Directory.GetFiles(root, "*.tmp").Length);
+        });
+    }
+
+    /// <summary>Rejects a file and its descendant as simultaneous targets before creating their directories or staging files.</summary>
+    private static void TestAtomicTargetOverlap()
+    {
+        WithTemporaryDirectory(root =>
+        {
+            string parent = Path.Combine(root, "overlap");
+            Throws("ATOMIC_TARGET_OVERLAP", () => AtomicFile.WriteAll(
+                new(parent, "one"u8.ToArray()), new(Path.Combine(parent, "two"), "two"u8.ToArray())));
+            Equal(0, Directory.GetFileSystemEntries(root).Length);
+        });
+    }
+
 }

@@ -16,15 +16,22 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 from build_release import ensure_regular_tree, write_json  # noqa: E402
 
 
-def demonstrate(cli: Path, output: Path) -> dict[str, object]:
+def demonstrate(cli: Path, output: Path, *, powershell_host: Path | None = None) -> dict[str, object]:
     """Run positive and negative CLI scenarios and record actual exit codes and round-trip comparisons."""
     cli = cli.resolve(strict=True)
     ensure_regular_tree(output)
     output.mkdir(parents=True, exist_ok=False)
-    prefix = ['dotnet', str(cli)] if cli.suffix.lower() == '.dll' else [str(cli)]
+    if powershell_host is not None:
+        if cli.suffix.lower() != '.dll':
+            raise ValueError('The diagnostic PowerShell host accepts a locally compiled .dll only.')
+        prefix = [str(powershell_host), '-NoLogo', '-NoProfile', '-File', str(ROOT / 'scripts/run_managed.ps1'), str(cli)]
+    else:
+        prefix = ['dotnet', str(cli)] if cli.suffix.lower() == '.dll' else [str(cli)]
     steps: list[dict[str, object]] = []
     report: dict[str, object] = {'dataKind': 'SYNTHETIC', 'gameRuntimeVerified': False,
-        'status': 'running', 'steps': steps}
+        'status': 'running', 'steps': steps,
+        'executionKind': 'powershell-hosted-managed' if powershell_host else 'published-cli',
+        'standardNet9Validation': False if powershell_host else None}
 
     def run(name: str, *arguments: str | Path, expected: int = 0) -> None:
         """Execute one CLI command and fail the demo if its actual exit code is unexpected."""
@@ -74,7 +81,7 @@ def demonstrate(cli: Path, output: Path) -> dict[str, object]:
         document['dialogs'][0]['translationMessage'] = 'Привет!'
         write_json(translation, document)
         run('09-font-inspect', 'font-inspect', FIXTURES / 'reference-lt.bin', glyphs,
-            '--preview', output / 'synthetic-font.png', '--json', output / 'font.json')
+            '--preview', output / 'synthetic-font.png', '--json', output / 'font.json', expected=2)
         run('10-font-import', 'font-import-bdf', FIXTURES / 'reference-lt.bin', glyphs,
             FIXTURES / 'reference-font.bdf', output / 'synthetic-lt.bin', '--mode', 'russian',
             '--json', output / 'font-import.json')
@@ -101,10 +108,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cli', required=True, type=Path)
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--powershell-host', type=Path, help='Diagnostic fallback for locally compiled DLLs; NOT .NET 9 acceptance.')
     args = parser.parse_args()
     output = args.output or ROOT / 'artifacts' / 'demo' / uuid.uuid4().hex
     try:
-        demonstrate(args.cli, output)
+        demonstrate(args.cli, output, powershell_host=args.powershell_host)
         print(f'Synthetic demonstration evidence: {output}')
         print('This does not verify text rendering or gameplay in PPSSPP or on a PSP.')
         return 0

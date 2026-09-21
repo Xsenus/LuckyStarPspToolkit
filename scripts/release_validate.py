@@ -20,6 +20,7 @@ from typing import Sequence
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from build_release import native_rid, write_json, ensure_regular_tree  # noqa: E402
+from managed_evidence import validate_evidence, execution_input_hashes  # noqa: E402
 
 
 def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
@@ -97,11 +98,27 @@ def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
         run('powershell-syntax', [pwsh, '-NoProfile', '-Command', command])
     else:
         skip('powershell-syntax', 'PowerShell is not installed.')
+    # Alternate-host evidence is explicitly separate from the target SDK/native matrix.
+    managed_path = output / 'managed-fallback/managed-fallback-report.json'
+    if managed_path.is_file():
+        try:
+            managed = validate_evidence(ROOT, managed_path)
+            for step in managed['steps']:
+                if step['name'] == 'fixtures':
+                    continue
+                checks.append({'name': 'alternate-host-' + step['name'], 'status': 'passed',
+                               'log': 'managed-fallback/' + step['log'], 'exitCode': step['exitCode'],
+                               'framework': managed['compilation']['framework'], 'standardNet9Validation': False})
+                print('PASSED alternate-host-' + step['name'], flush=True)
+        except (OSError, ValueError, KeyError) as exc:
+            checks.append({'name': 'alternate-host-evidence', 'status': 'failed', 'reason': str(exc)})
+    else:
+        skip('alternate-host-evidence', 'No successful current-source alternate-runtime C# execution report was supplied.')
     dotnet = shutil.which('dotnet')
     if dotnet and native_rid() and not any(c['status'] == 'failed' for c in checks):
         run('actual-native-release-pipeline', [sys.executable, 'scripts/build_release.py', '--rids', native_rid()])
     else:
-        for name in ('csharp-compilation', 'csharp-self-tests', 'compiled-roslyn-audit',
+        for name in ('net9-sdk-compilation', 'net9-sdk-self-tests', 'net9-sdk-roslyn-audit',
                      'native-published-demo', 'self-contained-publish'):
             skip(name, '.NET SDK/native target unavailable or preceding source validation failed.')
         if require_dotnet:
@@ -109,7 +126,7 @@ def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
     skip('github-hosted-ci', 'Workflow definitions were inspected; remote jobs were not executed here.')
     skip('ppsspp-and-psp-acceptance', 'Original sc.cpk, lt.bin, ISO and game runtime acceptance are not available.')
     counts = {state: sum(c['status'] == state for c in checks) for state in ('passed', 'failed', 'not_run')}
-    report = {'schema': 'lsptool.actual-validation.v3', 'version': (ROOT / 'VERSION').read_text().strip(),
+    report = {'schema': 'lsptool.actual-validation.v4', 'inputHashes': execution_input_hashes(ROOT), 'version': (ROOT / 'VERSION').read_text().strip(),
               'generatedUtc': datetime.now(timezone.utc).isoformat(),
               'status': 'failed' if counts['failed'] else ('partial' if counts['not_run'] else 'passed'),
               'summary': counts, 'checks': checks,
@@ -118,7 +135,7 @@ def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
                               'pygments': importlib.metadata.version('Pygments'),
                               'cryptography': importlib.metadata.version('cryptography')},
               'gameRuntimeVerified': False,
-              'warning': 'Python oracles and mocked compiler-failure orchestration are NOT execution of C# codecs.'}
+              'warning': 'Alternate-host C# execution is recorded separately; it does not prove .NET 9 SDK, Windows, native publish or gameplay compatibility.'}
     write_json(output / 'validation-summary.json', report)
     return report
 

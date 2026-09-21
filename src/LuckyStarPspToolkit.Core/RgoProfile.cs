@@ -117,8 +117,8 @@ public sealed class RgoExecutableCheck
     /// <summary>The patch points value used by this model or operation.</summary>
     public required IReadOnlyList<PatchPointCheck> PatchPoints { get; init; }
 
-    [System.Text.Json.Serialization.JsonIgnore]
     /// <summary>The decrypted elf value used by this model or operation.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public byte[]? DecryptedElf { get; init; }
 }
 
@@ -202,6 +202,7 @@ public static class RgoProfile
     /// <summary>The fixed known script heap addiu instruction value used by this format or revision.</summary>
     public const uint KnownScriptHeapAddiuInstruction = 0x24846000;
 
+    /// <summary>Original instruction words that distinguish the supported RGO executable before any patch is allowed.</summary>
     private static readonly (string Name, int Offset, uint Expected)[] PatchPreconditions =
     [
         ("speaker-line-spacing", 0x003D24, 0x24840010),

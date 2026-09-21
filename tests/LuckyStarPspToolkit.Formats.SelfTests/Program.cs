@@ -13,6 +13,7 @@ using LuckyStarPspToolkit.Cli;
 using ExecutableCompatibility = LuckyStarPspToolkit.ExecutableCompatibility;
 using RgoExecutableCheck = LuckyStarPspToolkit.RgoExecutableCheck;
 using RgoProfile = LuckyStarPspToolkit.RgoProfile;
+using RgoVwfPatchInspection = LuckyStarPspToolkit.RgoVwfPatchInspection;
 using RgoVwfPatchProfile = LuckyStarPspToolkit.RgoVwfPatchProfile;
 
 return SelfTestRunner.Run(args);
@@ -48,6 +49,8 @@ internal static partial class SelfTestRunner
             Test("PSP asset bundle collection and atomic stream writes", TestAssetCollection);
             Test("RGO checksum validation", TestChecksum);
             Test("CRI UTF semantic round-trip", TestUtfRoundTrip);
+            Test("UTF cell and decoded-data allocation limits", TestUtfAllocationLimits);
+            Test("malformed UTF header fuzz under bounded memory", TestUtfMalformedFuzz);
             Test("independent script fixture parse", TestScriptParse);
             Test("script mutation and relocation", TestScriptMutation);
             Test("deterministic script mutation fuzz", TestScriptFuzz);
@@ -56,6 +59,8 @@ internal static partial class SelfTestRunner
             Test("workspace validation and JSON end-to-end", TestWorkspace);
             Test("workspace tamper, strict JSON, and control-code rejection", TestWorkspaceSafety);
             Test("transactional multi-file output", TestAtomicWriteSet);
+            Test("post-commit backup cleanup failure preserves outputs", TestBackupCleanupFailure);
+            Test("overlapping transaction paths fail before filesystem changes", TestAtomicTargetOverlap);
             Test("bounded file reads and deterministic SHA-256", TestBoundedFileIo);
             Test("EBOOT size plan safety", TestEbootPlan);
             Test("ZIP traversal rejection", TestZipSafety);
@@ -1801,4 +1806,20 @@ internal static partial class SelfTestRunner
     {
         if (!expected.SequenceEqual(actual)) throw new InvalidOperationException("Sequences differ.");
     }
+    /// <summary>Runs a filesystem test in a unique owned directory and removes it even if the assertion fails.</summary>
+    /// <param name="action">The test receiving the new directory's absolute path.</param>
+    private static void WithTemporaryDirectory(Action<string> action)
+    {
+        string path = Path.Combine(Path.GetTempPath(), "lsptool-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        try
+        {
+            action(path);
+        }
+        finally
+        {
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+        }
+    }
+
 }

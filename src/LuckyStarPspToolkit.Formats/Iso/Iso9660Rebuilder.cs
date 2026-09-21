@@ -1358,6 +1358,7 @@ public static class Iso9660Rebuilder
     {
         /// <summary>The entry value used by this model or operation.</summary>
         public Iso9660Entry Entry { get; } = entry;
+        /// <summary>The exact directory-record location whose endian copies may be updated by this replacement.</summary>
         public Iso9660DirectoryRecordLocation Record { get; } = record;
         /// <summary>The replacement path value used by this model or operation.</summary>
         public string ReplacementPath { get; } = replacementPath;

@@ -71,12 +71,12 @@ public sealed class FileProbe
     /// <summary>The elf header value used by this model or operation.</summary>
     public Elf32Info? ElfHeader { get; init; }
 
-    [JsonIgnore]
     /// <summary>The byte payload associated with this record.</summary>
+    [JsonIgnore]
     public required byte[] Data { get; init; }
 
-    [JsonIgnore]
     /// <summary>The base name value used by this model or operation.</summary>
+    [JsonIgnore]
     public string BaseName => Path.GetFileName(LogicalPath.Replace('/', Path.DirectorySeparatorChar));
 }
 

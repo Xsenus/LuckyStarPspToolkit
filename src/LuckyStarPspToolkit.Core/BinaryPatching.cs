@@ -42,8 +42,8 @@ public sealed class BinaryPatchResult
     /// <summary>The applied patches value used by this model or operation.</summary>
     public required IReadOnlyList<AppliedBinaryPatch> AppliedPatches { get; init; }
 
-    [System.Text.Json.Serialization.JsonIgnore]
     /// <summary>The output value used by this model or operation.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public required byte[] Output { get; init; }
 }
 

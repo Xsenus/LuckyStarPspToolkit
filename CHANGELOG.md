@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0
+
+Real Roslyn/C#13 compilation and alternate-host execution; compiler defects fixed;
+post-commit cleanup data-loss regression fixed; bounded-memory CMAC with 81 independent
+vectors; UTF cell/payload budgets; malformed-header regressions; corrected font demo exit
+code; compiler-attached XML summaries; preserved Git lineage from 0.10.0.
+Standard .NET 9/Windows publication and real gameplay acceptance remain unverified.
+
+
 ## 0.10.0 — 2026-09-21
 
 Checked local/CI build-and-package driver; RID restore fix; native command fail-fast; Roslyn documentation gate; field/property/enum/primary-parameter summaries; strict duplicate-key JSON; protected workspace outputs; root path and portable traversal fixes; one-snapshot glyph handling and bounded trie inputs; no font/game binary fixtures in publication snapshots; explicit provenance review and synthetic-only customer demo. C# compilation/native publication and real game acceptance not verified in the preparation environment.

@@ -649,7 +649,13 @@ public sealed class LuckyStarScript
     /// <summary>
     /// Defines the supported interval kind values.
     /// </summary>
-    private enum IntervalKind { Dialog, Choice }
+    private enum IntervalKind
+    {
+        /// <summary>A dialogue interval containing speaker, message and their structural delimiters.</summary>
+        Dialog,
+        /// <summary>A choice-text interval ending in its original choice delimiter.</summary>
+        Choice
+    }
     /// <summary>
     /// Represents immutable interval data exchanged by the toolkit.
     /// </summary>

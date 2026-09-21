@@ -14,6 +14,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import build_release as release  # noqa: E402
+from managed_evidence import execution_input_hashes, validate_evidence, EXPECTED_STEPS  # noqa: E402
+from package_release import audit_history  # noqa: E402
 from document_members import has_summary, member_lines  # noqa: E402
 
 
@@ -35,6 +37,16 @@ class ReleasePipelineTests(unittest.TestCase):
         self.assertIn("rejected, expected=3", text)
         cli = (ROOT / 'src/LuckyStarPspToolkit.Cli/CommandApplication.cs').read_text()
         self.assertIn('ExitInvalidInput = 3;', cli)
+
+    def test_demo_expects_incomplete_font_code(self) -> None:
+        """A blank Russian fixture is valid but incomplete and must not fail the release demonstration."""
+        text = (ROOT / 'scripts/demo_customer.py').read_text()
+        self.assertIn("output / 'font.json', expected=2", text)
+
+    def test_summary_after_attribute_is_not_attached(self) -> None:
+        """Match the compiler: documentation placed after an attribute cannot document the member."""
+        self.assertFalse(has_summary(['[JsonIgnore]', '/// <summary>Too late</summary>', 'public int Value { get; }'], 2))
+        self.assertTrue(has_summary(['/// <summary>Correct</summary>', '[JsonIgnore]', 'public int Value { get; }'], 2))
 
     def test_windows_and_linux_use_shared_driver(self) -> None:
         """Workflows cannot bypass the checked native release driver with a masked command list."""
@@ -180,6 +192,65 @@ class ReleasePipelineTests(unittest.TestCase):
         text = 'public class Item\n{\n    public int Id { get; set; }\n}'
         self.assertIn((2, 'Id'), member_lines(text))
         self.assertFalse(has_summary(text.splitlines(), 2))
+
+
+    def test_execution_fingerprint_tracks_scripts_and_source_only(self) -> None:
+        """Evidence tracks code and runner changes, not generated artifacts, reports or private customer data."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in ('VERSION', 'src/Thing.cs', 'scripts/demo_customer.py', 'artifacts/copy.cs', 'private/code.cs'):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('0.11.0')
+            hashes = execution_input_hashes(root)
+            self.assertEqual({'VERSION', 'src/Thing.cs', 'scripts/demo_customer.py'}, set(hashes))
+            (root / 'src/Thing.cs').write_text('changed')
+            self.assertNotEqual(hashes, execution_input_hashes(root))
+
+    def test_managed_evidence_rejects_stale_source_or_missing_logs(self) -> None:
+        """An old green status cannot certify new source; altering a subprocess log invalidates evidence."""
+        import hashlib
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); (root / 'VERSION').write_text('0.11.0')
+            logs = root / 'artifacts/logs'; logs.mkdir(parents=True)
+            steps = []; log_hashes = {}
+            for index, name in enumerate(sorted(EXPECTED_STEPS)):
+                log = logs / f'{index}.log'; log.write_text('PASS')
+                log_hashes[log.name] = hashlib.sha256(log.read_bytes()).hexdigest()
+                steps.append({'name': name, 'exitCode': 0, 'passed': True, 'log': log.name})
+            report = {'version': '0.11.0', 'status': 'passed-experimental-managed-host',
+                      'inputHashes': execution_input_hashes(root), 'logHashes': log_hashes, 'steps': steps,
+                      'standardNet9Validation': False, 'nativeWindowsVerified': False,
+                      'gameRuntimeVerified': False, 'binaryReleaseProduced': False,
+                      'compilation': {'success': True, 'assemblies': [{'success': True}] * 6,
+                                      'standardDotnetBuild': False, 'standardNet9Validation': False}}
+            path = logs / 'report.json'; path.write_text(json.dumps(report))
+            self.assertEqual('0.11.0', validate_evidence(root, path)['version'])
+            (logs / '0.log').write_text('altered')
+            with self.assertRaisesRegex(ValueError, 'missing or modified'):
+                validate_evidence(root, path)
+            (root / 'extra.props').write_text('<Project/>')
+            with self.assertRaisesRegex(ValueError, 'stale'):
+                validate_evidence(root, path)
+
+    def test_history_audit_rejects_deleted_font(self) -> None:
+        """Source packaging checks historical trees, not only HEAD, so deleted font files cannot leak in bundles."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args: str) -> None:
+                """Create a local isolated test repository without contacting a remote service."""
+                subprocess.run(['git', *args], cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            git('init', '-b', 'main'); git('config', 'user.name', 'Test')
+            git('config', 'user.email', 'test@example.invalid')
+            (root / 'README.md').write_text('safe'); git('add', '.')
+            git('commit', '-m', 'safe baseline')
+            self.assertEqual(1, len(audit_history(root)))
+            # Arbitrary test bytes, not an actual font, exercise the extension policy.
+            (root / 'deleted.bdf').write_text('not a font'); git('add', '.')
+            git('commit', '-m', 'forbidden historical extension')
+            git('rm', 'deleted.bdf'); git('commit', '-m', 'remove forbidden file')
+            with self.assertRaisesRegex(ValueError, 'source handoff'):
+                audit_history(root)
 
     def test_json_writer_is_utf8(self) -> None:
         """Reports preserve Russian text and leave no temporary file after atomic replacement."""
