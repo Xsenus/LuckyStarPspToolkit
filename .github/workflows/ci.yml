@@ -39,7 +39,7 @@ jobs:
         run: |
           node web/license-admin/test.mjs
           node web/license-admin/build.mjs
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '9.0.x'
       - name: Checked build, licensing lifecycle, licensed synthetic demo and LOCKED preview
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '9.0.x'
       - name: Install browser test tools

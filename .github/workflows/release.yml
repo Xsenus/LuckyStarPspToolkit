@@ -51,7 +51,7 @@ jobs:
         run: |
           node web/license-admin/test.mjs
           node web/license-admin/build.mjs
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '9.0.x'
       - name: Materialize PUBLIC issuer configuration
