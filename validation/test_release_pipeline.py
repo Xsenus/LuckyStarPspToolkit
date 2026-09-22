@@ -22,6 +22,32 @@ from document_members import has_summary, member_lines  # noqa: E402
 class ReleasePipelineTests(unittest.TestCase):
     """Verify fail-fast execution, preservation of old artifacts and honest platform status."""
 
+    def test_api_catalog_uses_same_ordinal_order_on_every_host(self) -> None:
+        """Mixed-case source names must not make the checked-in API stale only on Windows."""
+        import generate_api_reference as api
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / 'src').mkdir()
+            for name in ('CrilaylaCodec', 'CriUtfCodec'):
+                (root / 'src' / (name + '.cs')).write_text(
+                    '/// <summary>Fixture.</summary>\npublic class ' + name + ' {}\n', encoding='utf-8')
+            with patch.object(api, 'ROOT', root):
+                rendered, _, _, _ = api.render_reference()
+            self.assertLess(rendered.index('src/CriUtfCodec.cs'), rendered.index('src/CrilaylaCodec.cs'))
+
+    def test_owner_cross_publish_keeps_linux_execute_permissions(self) -> None:
+        """Linux owner executables built on Windows must launch after ZIP extraction."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            folder = root / 'input'
+            folder.mkdir()
+            for name in ('lsp-license-server', 'lsp-license-admin'):
+                (folder / name).write_bytes(b'\x7fELF-test')
+            release.package_directory(folder, root / 'owner.zip')
+            with zipfile.ZipFile(root / 'owner.zip') as archive:
+                for name in ('lsp-license-server', 'lsp-license-admin'):
+                    self.assertEqual(0o100755, archive.getinfo(name).external_attr >> 16)
+
     def test_source_package_rejects_assets_and_traversal(self) -> None:
         """No executable, game binary, font file or unsafe path can enter the source snapshot."""
         from package_release import check_source_name

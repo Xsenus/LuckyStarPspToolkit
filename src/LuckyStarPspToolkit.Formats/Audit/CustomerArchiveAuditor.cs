@@ -258,7 +258,7 @@ public static class CustomerArchiveAuditor
     private static string NormalizeZipPath(string value)
     {
         string normalized = value.Replace('\\', '/');
-        if (normalized.StartsWith('/', StringComparison.Ordinal) || normalized.Contains(':', StringComparison.Ordinal))
+        if (normalized.StartsWith('/') || normalized.Contains(':', StringComparison.Ordinal))
         {
             throw new ToolkitException("ZIP_PATH", $"ZIP entry has an absolute path: {value}");
         }

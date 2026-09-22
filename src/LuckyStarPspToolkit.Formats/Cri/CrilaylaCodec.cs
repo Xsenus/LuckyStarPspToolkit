@@ -39,15 +39,20 @@ public static class CrilaylaCodec
     public static CrilaylaInfo Inspect(ReadOnlySpan<byte> data, FileLimits? limits = null)
     {
         limits ??= FileLimits.Default;
+        if (data.Length > limits.MaximumInputBytes)
+        {
+            throw new ToolkitException("CRILAYLA_LIMIT", $"CRILAYLA input {data.Length} exceeds configured limit.");
+        }
         if (!IsFrame(data))
         {
             throw new ToolkitException("CRILAYLA_MAGIC", "Input is not a CRILAYLA frame.");
         }
         int uncompressedBody = CheckedSize(BinaryPrimitives.ReadUInt32LittleEndian(data[8..12]), "uncompressed body");
         int compressedSize = CheckedSize(BinaryPrimitives.ReadUInt32LittleEndian(data[12..16]), "compressed payload");
-        if (uncompressedBody > limits.MaximumCrilaylaOutputBytes - RawHeaderSize)
+        long extractedSize = (long)uncompressedBody + RawHeaderSize;
+        if (extractedSize > limits.MaximumCrilaylaOutputBytes)
         {
-            throw new ToolkitException("CRILAYLA_LIMIT", $"CRILAYLA output {uncompressedBody + RawHeaderSize} exceeds configured limit.");
+            throw new ToolkitException("CRILAYLA_LIMIT", $"CRILAYLA output {extractedSize} exceeds configured limit.");
         }
         long expectedFrame = (long)FrameHeaderSize + compressedSize + RawHeaderSize;
         if (expectedFrame != data.Length)
@@ -81,11 +86,18 @@ public static class CrilaylaCodec
             }
 
             int offset = checked((int)bits.ReadBits(13) + 3);
+            if (offset > written)
+            {
+                throw new ToolkitException("CRILAYLA_REFERENCE", $"Invalid CRILAYLA back-reference offset {offset} at output {written}.");
+            }
+            int remaining = reverseOutput.Length - written;
             int length = 3;
+            RequireRunFits(length, remaining);
             ReadOnlySpan<int> levels = [2, 3, 5, 8];
             foreach (int level in levels)
             {
                 int value = checked((int)bits.ReadBits(level));
+                RequireRunFits(value, remaining - length);
                 length = checked(length + value);
                 if (value != (1 << level) - 1)
                 {
@@ -97,6 +109,7 @@ public static class CrilaylaCodec
                 while (true)
                 {
                     int value = checked((int)bits.ReadBits(8));
+                    RequireRunFits(value, remaining - length);
                     length = checked(length + value);
                     if (value != 0xFF)
                     {
@@ -105,14 +118,6 @@ public static class CrilaylaCodec
                 }
             }
 
-            if (offset <= 0 || offset > written)
-            {
-                throw new ToolkitException("CRILAYLA_REFERENCE", $"Invalid CRILAYLA back-reference offset {offset} at output {written}.");
-            }
-            if (length > reverseOutput.Length - written)
-            {
-                throw new ToolkitException("CRILAYLA_OUTPUT", "CRILAYLA back-reference exceeds declared output size.");
-            }
             for (int i = 0; i < length; i++)
             {
                 reverseOutput[written] = reverseOutput[written - offset];
@@ -127,6 +132,17 @@ public static class CrilaylaCodec
             output[RawHeaderSize + i] = reverseOutput[reverseOutput.Length - 1 - i];
         }
         return output;
+    }
+
+    /// <summary>Rejects an impossible run while reading its length, before scanning further extension bytes or overflowing.</summary>
+    /// <param name="increment">The minimum run length or next wire-encoded length increment.</param>
+    /// <param name="remaining">Output capacity left after all previously validated increments.</param>
+    private static void RequireRunFits(int increment, int remaining)
+    {
+        if (increment > remaining)
+        {
+            throw new ToolkitException("CRILAYLA_OUTPUT", "CRILAYLA back-reference exceeds declared output size.");
+        }
     }
 
     /// <summary>
@@ -152,7 +168,7 @@ public static class CrilaylaCodec
         /// <summary>Stores the data state owned by this instance or type.</summary>
         private readonly ReadOnlySpan<byte> _data;
         /// <summary>Stores the bit position state owned by this instance or type.</summary>
-        private int _bitPosition;
+        private long _bitPosition;
 
         /// <summary>
         /// Initializes a new instance with validated constructor state.
@@ -175,16 +191,16 @@ public static class CrilaylaCodec
             {
                 throw new ArgumentOutOfRangeException(nameof(count));
             }
-            if (_bitPosition > _data.Length * 8 - count)
+            if (_bitPosition > (long)_data.Length * 8 - count)
             {
                 throw new ToolkitException("CRILAYLA_EOF", "CRILAYLA compressed bitstream ended early.");
             }
             uint value = 0;
             for (int i = 0; i < count; i++)
             {
-                int sourceBit = _bitPosition++;
-                int byteIndex = _data.Length - 1 - sourceBit / 8;
-                int bitIndex = 7 - sourceBit % 8;
+                long sourceBit = _bitPosition++;
+                int byteIndex = _data.Length - 1 - checked((int)(sourceBit / 8));
+                int bitIndex = 7 - (int)(sourceBit % 8);
                 value = (value << 1) | (uint)((_data[byteIndex] >> bitIndex) & 1);
             }
             return value;

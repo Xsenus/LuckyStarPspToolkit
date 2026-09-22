@@ -3,11 +3,15 @@ export function makeKey(cryptoProvider = globalThis.crypto) { const bytes = cryp
 /** Validate bounded positive integers before sending a mutation; the server independently revalidates them. */
 export function integer(value, min, max) { const n = Number(value); if (!Number.isInteger(n) || n < min || n > max)
     throw new Error(`Введите целое число от ${min} до ${max}`); return n; }
+/** Match the authority's duration ceiling before generating an immutable key receipt or submitting an extension. */
+export function durationMaximum(unit) { const maximum = { hours: 876000, days: 36500, years: 100 }[unit];
+    if (!Number.isSafeInteger(maximum)) throw new Error('Неизвестный срок'); return maximum; }
 /** Create one immutable issue request. Keep its ID and key for an explicit retry after an ambiguous network failure. */
 export function issueRequest(values, cryptoProvider = globalThis.crypto) { const unit = values.unit; if (!['hours', 'days', 'years', 'permanent'].includes(unit))
     throw new Error('Неизвестный срок'); if (!['activation', 'issue'].includes(values.starts))
-    throw new Error('Неизвестное начало срока'); const label = String(values.label ?? '').trim(); if (label.length > 120 || /[\x00-\x1f]/.test(label))
-    throw new Error('Метка: до 120 символов без управляющих знаков'); return { id: cryptoProvider.randomUUID(), accessKey: makeKey(cryptoProvider), label, unit, amount: unit === 'permanent' ? 0 : integer(values.amount, 1, unit === 'years' ? 100 : 876000), starts: values.starts, maxDevices: integer(values.devices, 1, 100) }; }
+    throw new Error('Неизвестное начало срока'); const label = String(values.label ?? '').trim(); if (label.length > 120 || /[\x00-\x1f\x7f-\x9f]/.test(label))
+    throw new Error('Метка: до 120 символов без управляющих знаков'); const amount = unit === 'permanent' ? 0 : integer(values.amount, 1, durationMaximum(unit));
+    const maxDevices = integer(values.devices, 1, 100); return { id: cryptoProvider.randomUUID(), accessKey: makeKey(cryptoProvider), label, unit, amount, starts: values.starts, maxDevices }; }
 /** A reservation is retired by global epoch changes even if it has no individual revocation timestamp. */
 export function reserveStatus(grant, policy) { return grant.revokedAt !== null ? 'Отозван' : grant.epoch !== policy.epoch ? 'Старое поколение' : !policy.enabled ? 'Отключён' : 'Действует'; }
 /** Bounded client-side page after local filtering of the size-limited server list. */

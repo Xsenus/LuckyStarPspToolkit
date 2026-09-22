@@ -37,11 +37,11 @@ trigger that error on a no-op rebuild.
 drop fields to bypass it. `CPK_FILE_COUNT` flags inconsistent counts. `CPK_METADATA_LIMIT`
 is a metadata byte budget, not an out-of-memory error. `CPK_UNSUPPORTED_INDEX` rejects
 extra indices whose references this ITOC-only rebuilder cannot relocate.
-See [CPK_CODEC_RU.md](CPK_CODEC_RU.md) for all new preconditions.
+See [CPK_CODEC_RU.md](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/CPK_CODEC_RU.md) for all new preconditions.
 
 ## Обновление 0.19.0: MFA и сессии
 
-См. [изолированную проверку владельца](ADMIN_AUTH_CONCURRENCY_RU.md).
+См. [изолированную проверку владельца](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/ADMIN_AUTH_CONCURRENCY_RU.md).
 WEB_BUSY — полоса проверки занята; автоматического повтора пароля/кода нет.
 WEB_RATE_LIMIT при reauth относится к сессии, а не к IP. WEB_UNAUTHORIZED после
 долгой проверки требует нового входа. Исходные лицензии и резерв до 168 часов не меняются.

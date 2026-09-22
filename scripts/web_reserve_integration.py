@@ -107,7 +107,8 @@ def main() -> int:
 
     def run(name: str, command: list[str], expected: int = 0, timeout: int = 180) -> str:
         """Capture process output after rejecting accidental exposure of a known plaintext credential."""
-        result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True,
+                                encoding='utf-8', errors='replace', timeout=timeout)
         text = result.stdout + result.stderr
         if any(value and value in text for value in sensitive):
             raise RuntimeError('Credential appeared in subprocess output: ' + name)

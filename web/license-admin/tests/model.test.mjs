@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
-import { makeKey, integer, issueRequest, reserveStatus, pageItems, requestApi, mutationApi, clearPendingMutations } from '../src/model.mjs';
+import { makeKey, integer, durationMaximum, issueRequest, reserveStatus, pageItems, requestApi, mutationApi, clearPendingMutations } from '../src/model.mjs';
 test('keys have 256-bit canonical format and differ', () => { const keys = new Set(Array.from({ length: 100 }, () => makeKey(webcrypto))); assert.equal(keys.size, 100); for (const key of keys)
     assert.match(key, /^LSP-[A-Za-z0-9_-]{43}$/); });
 test('bounded integral amounts reject injection and fractions', () => { for (const v of ['1x', 0, -1, 1.2, Infinity])
@@ -9,6 +9,24 @@ test('bounded integral amounts reject injection and fractions', () => { for (con
 test('permanent issue never invents an expiry', () => { const x = issueRequest({ unit: 'permanent', starts: 'activation', devices: 2, label: 'Owner' }, webcrypto); assert.equal(x.amount, 0); assert.equal(x.maxDevices, 2); assert.ok(x.id); });
 test('invalid issue parameters fail locally', () => { for (const values of [{ unit: 'months', starts: 'issue' }, { unit: 'days', starts: 'unknown' }, { unit: 'days', starts: 'issue', amount: 1, devices: 0 }])
     assert.throws(() => issueRequest(values, webcrypto)); });
+test('duration ceilings match hours, days and calendar years at exclusive rejection boundaries', () => {
+    for (const [unit, maximum] of [['hours', 876000], ['days', 36500], ['years', 100]]) {
+        assert.equal(durationMaximum(unit), maximum);
+        const values = { unit, starts: 'issue', amount: maximum, devices: 1 };
+        assert.equal(issueRequest(values, webcrypto).amount, maximum);
+        assert.throws(() => issueRequest({ ...values, amount: maximum + 1 }, webcrypto));
+    }
+    for (const unit of ['months', 'permanent', '__proto__', 'constructor']) assert.throws(() => durationMaximum(unit));
+});
+test('invalid issue parameters never generate a key or an immutable retry receipt', () => {
+    const forbidden = { randomUUID() { assert.fail('Invalid issue generated a UUID'); }, getRandomValues() { assert.fail('Invalid issue generated a key'); } };
+    for (const values of [{ unit: 'days', amount: 36501, devices: 1 }, { unit: 'years', amount: 101, devices: 1 }, { unit: 'days', amount: 1, devices: 0 }]) {
+        assert.throws(() => issueRequest({ starts: 'activation', ...values }, forbidden), /Введите целое число/);
+    }
+    for (const control of ['\x01', '\x7f', '\x85', '\x9f']) {
+        assert.throws(() => issueRequest({ unit: 'days', starts: 'activation', amount: 1, devices: 1, label: 'Client' + control + 'label' }, forbidden), /Метка/);
+    }
+});
 test('epoch retirement is not represented as an active reserve', () => { const g = { epoch: 1, revokedAt: null }; assert.equal(reserveStatus(g, { epoch: 2, enabled: true }), 'Старое поколение'); assert.equal(reserveStatus(g, { epoch: 1, enabled: false }), 'Отключён'); assert.equal(reserveStatus({ ...g, revokedAt: 5 }, { epoch: 1, enabled: true }), 'Отозван'); });
 test('page slices do not mutate input', () => { const data = [1, 2, 3, 4]; assert.deepEqual(pageItems(data, 1, 2), [3, 4]); assert.deepEqual(data, [1, 2, 3, 4]); });
 test('API sends credentials and CSRF only same-origin', async () => { let seen; await requestApi('/issue', { id: 'x' }, 'csrf', async (url, options) => { seen = { url, options }; return new Response('{"ok":true}', { headers: { 'content-type': 'application/json' } }); }); assert.equal(seen.url, '/api/issue'); assert.equal(seen.options.credentials, 'same-origin'); assert.equal(seen.options.headers['X-CSRF-Token'], 'csrf'); });

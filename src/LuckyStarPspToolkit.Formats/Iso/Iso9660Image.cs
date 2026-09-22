@@ -1119,7 +1119,7 @@ public sealed class Iso9660Image : IDisposable
         {
             value = value[..semicolon];
         }
-        if (value.EndsWith('.', StringComparison.Ordinal))
+        if (value.EndsWith('.'))
         {
             value = value[..^1];
         }

@@ -1,4 +1,16 @@
-# 0.18.0
+# Changelog
+
+## 0.19.1 — 2026-09-22
+
+Fix native .NET 9 compilation, enforce full EBOOT lineage in the public script-size
+patch API, harden CRILAYLA bounds and large-stream bit positions, align owner UI
+license-duration validation, and preserve cross-platform fixture/API/ZIP behavior.
+Run native Core 10 groups, Formats 54, Licensing 146, Node 38 and Chromium 32 steps.
+Document original customer requirements, actual acceptance limits and public-source
+publication without issuer secrets or game/font assets. Third-party VWF attribution
+and the explicit exception from this project's MIT grant remain visible.
+See [release notes](docs/RELEASE_NOTES_0.19.1_RU.md) and
+[acceptance matrix](docs/CUSTOMER_ACCEPTANCE_RU.md).
 
 ## 0.19.0 — 2026-09-22
 
@@ -7,6 +19,8 @@
 сессии. HTTP-изоляция 2/2/8 и ранние cookie/CSRF проверки. React-диагностика
 ошибок входа, 25 C# групп и 8 frontend tests. Схема БД и клиентский протокол прежние.
 Подробности: docs/RELEASE_NOTES_0.19.0_RU.md.
+
+## 0.18.0 — 2026-09-22
 
 Bounded server-side license/reserve/installation-choice pages with deterministic keyset
 ordering, authenticated query/revision/time-bound continuations, coherent counts and
@@ -17,7 +31,7 @@ Add 12 C# groups, 10 Node tests and a cross-version response/allocation benchmar
 Run every frontend test file without shell-dependent wildcard expansion.
 See docs/RELEASE_NOTES_0.18.0_RU.md; target SDK and gameplay remain separate gates.
 
-# 0.17.0
+## 0.17.0
 
 Durable offline expiry/rollback denials; atomic retirement of reserve grants on device reset;
 owner browser-session inventory and MFA/CSRF-protected revocation. Remove discarded execution
@@ -25,12 +39,11 @@ signatures during reserve renewal; bounded audit tail; streaming bounded UTF-8 w
 immutable single-flight mutation retries isolated across authentication contexts. Twelve new
 C# groups and eight Node tests. See docs/RELEASE_NOTES_0.17.0_RU.md.
 
-# 0.16.0
+## 0.16.0
 
 React owner console, MFA и резерв до 7 дней. См. docs/RELEASE_NOTES_0.16.0_RU.md
 и docs/TEST_REPORT_RU.md. Нет вечного master bypass; disconnected revoke ограничен TTL.
 
-# Changelog
 
 ## 0.15.0 — 2026-09-22
 

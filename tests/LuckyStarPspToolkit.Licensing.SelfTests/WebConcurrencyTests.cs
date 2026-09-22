@@ -300,12 +300,12 @@ internal static class WebConcurrencyTests
         h.Data.Time.Advance(TimeSpan.FromMinutes(2)); h.Continue.Set(); Failed(task, "WEB_AUTH_FAILED"); h.Login();
     }
 
-    /// <summary>Failed atomic account persistence consumes neither a factor nor the verification lane.</summary>
+    /// <summary>Failed atomic account persistence on Unix or Windows consumes neither a factor nor the verification lane.</summary>
     public static void AccountWriteFailure()
     {
         using var h = new Harness(); string path = Path.Combine(h.Data.Directory, "web-account.json"); string saved = path + ".saved";
         File.Move(path, saved); Directory.CreateDirectory(path);
-        try { Check(Capture(() => h.Login()) is IOException); }
+        try { Check(Capture(() => h.Login()) is IOException or UnauthorizedAccessException); }
         finally { Directory.Delete(path); File.Move(saved, path); }
         h.Login();
     }

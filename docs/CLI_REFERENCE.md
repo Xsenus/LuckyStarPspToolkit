@@ -1,4 +1,4 @@
-> **Изменение 0.16.0:** все рабочие команды требуют онлайн-лицензию. Сначала [инструкция владельца](LICENSE_OWNER_RU.md) и [активация](LICENSE_CUSTOMER_RU.md). Сборка без `--license-trust` остаётся заблокированной. Старое standalone demo требует уже активированный CLI; `scripts/license_integration.py` проверяет полный сценарий на отдельном тестовом издателе.
+> Рабочие команды требуют действующую лицензию. Заранее выданный резерв разрешает ограниченную работу без связи. Сначала [инструкция владельца](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/LICENSE_OWNER_RU.md) и [активация](LICENSE_CUSTOMER_RU.md). Сборка без `--license-trust` остаётся заблокированной. Старое standalone demo требует уже активированный CLI; `scripts/license_integration.py` проверяет полный сценарий на отдельном тестовом издателе.
 
 # CLI reference
 

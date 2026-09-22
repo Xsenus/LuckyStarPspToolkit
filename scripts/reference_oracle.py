@@ -553,7 +553,7 @@ patched_iso,patched_iso_replacements=patch_iso_oracle(iso_image,[
 (FIX/'reference-script.bin').write_bytes(script)
 (FIX/'reference.cpk').write_bytes(cpk)
 (FIX/'crilayla-extracted.bin').write_bytes(expected)
-(FIX/'glyph-map.txt').write_text('\n'.join(glyph_map)+'\n',encoding='utf-8')
+(FIX/'glyph-map.txt').write_text('\n'.join(glyph_map)+'\n',encoding='utf-8',newline='\n')
 (FIX/'reference-lt.bin').write_bytes(lt_font)
 (FIX/'reference-font.bdf').write_bytes(bdf)
 (FIX/'reference-lt-russian.bin').write_bytes(patched_lt_font)
@@ -584,7 +584,7 @@ iso_patch_manifest={
         },
     ],
 }
-(FIX/'iso-patch-manifest.json').write_text(json.dumps(iso_patch_manifest,indent=2)+'\n',encoding='utf-8')
+(FIX/'iso-patch-manifest.json').write_text(json.dumps(iso_patch_manifest,indent=2)+'\n',encoding='utf-8',newline='\n')
 meta={
     'scriptSha256':hashlib.sha256(script).hexdigest(),
     'cpkSha256':hashlib.sha256(cpk).hexdigest(),
@@ -611,5 +611,5 @@ meta={
     'patchedIsoReplacements':patched_iso_replacements,
     'isoPatchManifestSha256':hashlib.sha256((json.dumps(iso_patch_manifest,indent=2)+'\n').encode('utf-8')).hexdigest(),
 }
-(FIX/'oracle.json').write_text(json.dumps(meta,indent=2),encoding='utf-8')
+(FIX/'oracle.json').write_text(json.dumps(meta,indent=2),encoding='utf-8',newline='\n')
 print(meta)

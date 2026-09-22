@@ -20,7 +20,7 @@ for (const file of manifest.files) {
     modules.push(`${JSON.stringify(file.module)}: function(module,exports,require){\n${source}\n}`);
 }
 const vendor = `/* React MIT. Exact build provenance: vendor-manifest.json. */\nconst definitions={${modules.join(',\n')}};\nconst cache=Object.create(null);\nfunction require(id){if(cache[id])return cache[id].exports;if(!Object.hasOwn(definitions,id))throw new Error('Unknown module');const m={exports:{}};cache[id]=m;definitions[id](m,m.exports,require);return m.exports;}\nexport const React=require('react');\nexport const createRoot=require('react-dom/client').createRoot;\n`;
-const app = readFileSync(path.join(root, 'src/model.mjs'), 'utf8').replace(/^export /gm, '') + '\n' + readFileSync(path.join(root, 'src/app.mjs'), 'utf8').replace(/^import .*from '\.\/model\.mjs';\n/m, '');
+const app = readFileSync(path.join(root, 'src/model.mjs'), 'utf8').replace(/^export /gm, '') + '\n' + readFileSync(path.join(root, 'src/app.mjs'), 'utf8').replace(/^import .*from '\.\/model\.mjs';\r?\n/m, '').replace("'__LSP_VERSION__'", JSON.stringify(packageVersion));
 const stage = path.join(root, '.dist-stage');
 const dest = path.join(root, 'dist');
 const backup = path.join(root, '.dist-old');

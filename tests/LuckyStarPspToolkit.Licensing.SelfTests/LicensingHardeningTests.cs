@@ -163,7 +163,7 @@ internal static class LicensingHardeningTests
         Assert(File.ReadAllBytes(Path.Combine(f.Directory, "licenses.json")).AsSpan().SequenceEqual(before), "Failed transaction changed disk");
     }
 
-    /// <summary>A failed durable snapshot replacement leaves the previously committed memory state and revision untouched.</summary>
+    /// <summary>A failed durable snapshot replacement preserves committed state for either Unix I/O errors or Windows directory-access errors.</summary>
     public static void CommitWriteFailure()
     {
         using var f = new Fixture(); var issue = f.Issue(); f.Authority.Dispose();
@@ -175,7 +175,7 @@ internal static class LicensingHardeningTests
         {
             bool failed = false;
             try { store.Change(f.Time.GetUtcNow().ToUnixTimeSeconds(), db => { db.Licenses[issue.Id] = db.Licenses[issue.Id] with { Status = "suspended" }; return 0; }); }
-            catch (IOException) { failed = true; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { failed = true; }
             Assert(failed, "Injected output collision was ignored");
             Assert(store.Read(db => db.Revision) == revision && store.Read(db => db.Licenses[issue.Id].Status) == "active", "Failed commit changed live state");
             Assert(!Directory.EnumerateFiles(f.Directory, "*.tmp").Any(), "Failed commit leaked a temporary snapshot");
@@ -184,7 +184,7 @@ internal static class LicensingHardeningTests
         Assert(File.ReadAllBytes(path).AsSpan().SequenceEqual(before), "Original snapshot was not preserved");
     }
 
-    /// <summary>Failure to persist a new time observation prevents issuance of any new execution lease.</summary>
+    /// <summary>Failure to persist a time observation prevents a new lease, including Windows directory collisions reported as access denial.</summary>
     public static void CheckpointWriteFailure()
     {
         using var f = new Fixture(); var issue = f.Issue(); f.Grant(issue);
@@ -193,7 +193,7 @@ internal static class LicensingHardeningTests
         try
         {
             bool failed = false;
-            try { f.Grant(issue, "check"); } catch (IOException) { failed = true; }
+            try { f.Grant(issue, "check"); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { failed = true; }
             Assert(failed, "A grant escaped without a durable time checkpoint");
             Assert(!Directory.EnumerateFiles(f.Directory, "*.tmp").Any(), "Failed clock write leaked a temporary file");
         }

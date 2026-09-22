@@ -2,13 +2,15 @@
 
 ## Scope of this notice
 
-This repository is an engineering preview. A **rights review** is still required before public or commercial redistribution of all inherited components. The presence of a MIT LICENSE does not relicense third-party material or certify a clean-room development process.
+This repository is an engineering preview published with explicit attribution of inherited materials. The project's MIT LICENSE applies only to the contributors' own material to the extent they hold the relevant rights. It does not relicense third-party instruction tables, game/platform data or fonts, and does not certify a clean-room development process. The rights review of inherited material remains unresolved. Its provenance is identified below so recipients can assess their own intended use and distribution.
 
 ## RyououGakuenToolkit and the VWF profile
 
 Earlier research used TimepieceMaster/RyououGakuenToolkit, in particular the 133-word RGO VWF instruction table, format layouts, and patch locations at reference commit e734977fc55b39e30a5fbf2b3e52e12443b737b2. Relevant path: `apps/RGT_RGO_Patch_Builder/hdr/scripts/variable_width_font_patches.h`.
 
 The C# RgoVwfPatchProfile and the JSON profile preserve replacement instruction sequences matching those researched materials. Rewriting a table in C# is not by itself proof of independent authorship or permission. The previously stated unconditional "not copied / independent / clean-room" assurances were not established by the available evidence and are withdrawn. No upstream LICENSE/permission record has been supplied with this project. Review provenance, obtain permission where required, or replace affected material before public redistribution. This is an explicit unresolved release-review item, not a technical build failure.
+
+The inherited replacement instruction table is **excluded from this repository's MIT grant**; no additional permission for that upstream material is asserted here. On 22 September 2026 a read-only check of the referenced Git tree found no LICENSE/COPYING/NOTICE file, and the repository API reported no license. This is a factual provenance record, not a legal determination that each instruction or table is protected or unprotected. See [publication audit](docs/PUBLICATION_AUDIT_RU.md).
 
 ## PPSSPP and libkirk
 

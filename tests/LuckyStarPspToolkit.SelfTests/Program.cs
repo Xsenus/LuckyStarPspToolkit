@@ -27,6 +27,7 @@ internal static partial class Program
         Run("atomic file write", TestAtomicWrite);
         Run("verified binary patch engine", TestBinaryPatchEngine);
         Run("decrypted ELF profile negative check", TestUnknownElfRejected);
+        Run("script size updates reject unverified EBOOT lineage", TestUnverifiedScriptTableUpdate);
 
         string? customerArchive = ParseCustomerArchive(args);
         if (customerArchive is not null)

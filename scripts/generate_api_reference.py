@@ -40,7 +40,9 @@ def format_method(symbol: MethodSymbol) -> str:
 
 def render_reference() -> tuple[str, int, int, int]:
     """Render the complete API reference and return coverage counters."""
-    paths = sorted(p for p in (ROOT / "src").rglob("*.cs") if not {"bin", "obj"} & set(p.parts))
+    # Path ordering is case-insensitive on Windows; use ordinal POSIX names on every host.
+    paths = sorted((p for p in (ROOT / "src").rglob("*.cs") if not {"bin", "obj"} & set(p.parts)),
+                   key=lambda p: p.relative_to(ROOT).as_posix())
     lines = [
         "# C# API and method catalog",
         "",

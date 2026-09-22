@@ -37,6 +37,11 @@ internal static partial class SelfTestRunner
     {
         try
         {
+            if (args.Contains("--crilayla-large-probe", StringComparer.Ordinal))
+            {
+                Test("CRILAYLA compressed bit range beyond Int32", TestCrilaylaLargeBitRange);
+                return 0;
+            }
             if (args.Contains("--cpk-benchmark", StringComparer.Ordinal) || args.Contains("--cpk-probe", StringComparer.Ordinal))
                 return CpkScaleFixture.Run(args);
             if (args.Contains("--script-benchmark", StringComparer.Ordinal) || args.Contains("--probe", StringComparer.Ordinal))
@@ -72,6 +77,7 @@ internal static partial class SelfTestRunner
             Test("8192-dialogue scenario and all 16385 jump targets", TestScriptLargeRebuild);
             Test("1024 deterministic scenario header mutations", TestScriptHeaderFuzz);
             Test("independent CPK/ITOC and CRILAYLA fixture", TestCpkParse);
+            Test("CRILAYLA back-reference tiers, overlap, and frame budgets", TestCrilaylaBackReferences);
             Test("CPK replacement and verified rebuild", TestCpkRebuild);
             Test("CPK byte-identical no-op and independent output ownership", TestCpkNoOpPreservation);
             Test("CPK auxiliary metadata across DataL and DataH", TestCpkAuxiliaryMigration);

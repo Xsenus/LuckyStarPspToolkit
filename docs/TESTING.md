@@ -1,12 +1,12 @@
-# Testing and acceptance — 0.13.0
+# Testing and acceptance
 
 ## Distinct layers, distinct evidence
 
 1. Offline source/documentation checks: Python lexical/XML checks, Bash syntax, project and workflow inspection. These do NOT compile C#.
 2. Independent binary reference implementations: generated CPK/script/CRILAYLA/LT/BDF/ISO bytes and Python validators. These do NOT execute the C# codecs.
 3. Python unit tests: actually execute fail-fast/packaging/rollback routines; the explicit mocked compiler-failure case checks orchestration, not compilation.
-4. C# compilation + both self-test projects + Roslyn named-declaration audit. Mandatory on a real .NET 9 SDK host.
-5. Native published executable and `demo_customer.py`: mandatory on Windows and Linux CI jobs, testing synthetic round-trip text and ISO output.
+4. C# compilation + all three self-test projects + Roslyn named-declaration audit. Mandatory on a real .NET 9 SDK host.
+5. Native published executable plus the process licensing lifecycle: mandatory on Windows and Linux CI jobs. `license_integration.py` activates a throwaway test client and runs `demo_customer.py` for synthetic text/ISO round-trips. The normal unconfigured preview remains locked.
 6. Real customer archive + game resources + PPSSPP/hardware acceptance: separate and currently incomplete.
 
 The first three layers can pass while the fourth still finds errors. Reports must say which layers were executed. No "100% working" assertion follows from an oracle hash alone.

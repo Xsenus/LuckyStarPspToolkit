@@ -63,6 +63,9 @@ patched/
 **/licenses.json
 **/server-clock.json
 **/owner-connection.json
+**/web-account.json
+**/web-enrollment.json
+**/web-password.txt
 **/*.issue-request.json
 **/*.change.json
 *.pass

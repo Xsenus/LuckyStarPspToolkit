@@ -76,14 +76,14 @@ def write_json(path: Path, value: object) -> None:
 def package_directory(directory: Path, output: Path) -> None:
     """Create a sorted ZIP with stable timestamps and retain Unix executable permissions."""
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for path in sorted(directory.rglob("*")):
+        for path in sorted(directory.rglob("*"), key=lambda p: p.relative_to(directory).as_posix()):
             ensure_regular_tree(path)
             if not path.is_file():
                 continue
             relative = path.relative_to(directory).as_posix()
             info = zipfile.ZipInfo(relative, (2020, 1, 1, 0, 0, 0))
             info.create_system = 3
-            executable = path.name == "lsptool" or path.suffix == ".sh" or (os.name != "nt" and bool(path.stat().st_mode & 0o111))
+            executable = path.name in {"lsptool", "lsp-license-server", "lsp-license-admin"} or path.suffix == ".sh" or (os.name != "nt" and bool(path.stat().st_mode & 0o111))
             info.external_attr = (0o100755 if executable else 0o100644) << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             with path.open("rb") as source, archive.open(info, "w", force_zip64=True) as target:
@@ -255,8 +255,9 @@ def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: boo
                         raise BuildError("Published customer executable has the wrong licensing trust")
             else:
                 print(f"NOTICE: {rid} is cross-published, not executed on this host.")
-            for name in ("README.md", "VERSION", "LICENSE", "THIRD_PARTY_NOTICES.md"):
+            for name in ("VERSION", "LICENSE", "THIRD_PARTY_NOTICES.md"):
                 shutil.copy2(root / name, folder / name)
+            shutil.copy2(root / "docs/CUSTOMER_README_RU.md", folder / "README.md")
             (folder / "docs").mkdir(exist_ok=True)
             # Customer packages deliberately omit server/admin sources and owner operational documentation.
             for doc in ("LICENSE_CUSTOMER_RU.md", "USAGE_RU.md", "CLI_REFERENCE.md", "TROUBLESHOOTING.md"):

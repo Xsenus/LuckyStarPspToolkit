@@ -1,37 +1,72 @@
-# GitHub и лицензирование 0.19.0
+# Публичный GitHub и выпуск пакетов
 
-Полный архив и Git-история — только владельцу. Публикация исходников позволяет снять клиентский контроль.
-Изучите THIRD_PARTY_NOTICES.md перед публичным распространением. Реальная проверка ваших GitHub jobs не выполнялась.
+Владелец проекта выбрал публичную публикацию исходников. В репозитории находятся
+код, документация, профили и генераторы синтетических тестов. Рабочее состояние
+издателя и ключи хранятся отдельно. Публичность кода позволяет собрать изменённый
+клиент, поэтому лицензионная система управляет штатным дистрибутивом и доступом
+к вашему серверу, не обещая невозможности изменения локального приложения.
 
-```powershell
-git clone .\git\LuckyStarPspToolkit-0.19.0.git.bundle LuckyStarPspToolkit
-cd LuckyStarPspToolkit
-git remote remove origin
-git remote add origin <адрес-вашего-репозитория>
-git push -u origin main
-```
+## Перед первым push
 
-CI создаёт заблокированный preview и отдельно проверяет лицензирование на случайном временном loopback-издателе.
-Для клиентских релизов создайте repository variable **LSP_LICENSE_TRUST_JSON** со всем содержимым вашего
-публичного client-trust.json. Это открытый ключ/URL, не authority.json, не master.pass и не owner-connection.json.
-Workflow валидирует профиль и отвергает developmentLoopback/private fields.
-
-После успешных Windows/Linux проверок:
+Прочитайте [область лицензии](LICENSING.md),
+[сторонние notices](../THIRD_PARTY_NOTICES.md) и [аудит истории](PUBLICATION_AUDIT_RU.md).
+Проверяйте файлы, которые будут отправлены, включая все коммиты импортированной истории.
 
 ```powershell
-git push origin v0.19.0
+python validation/audit_repository.py
+git diff --check
+git status --short
+git remote -v
 ```
 
-Получится draft prerelease с customer-пакетами. Без публичной настройки издателя release job остановится,
-а не выдаст незаметно открытый EXE. Исходные и owner-пакеты не добавляются автоматически в публичный релиз.
-Встроенный профиль можно проверить `lsptool license build-info`; активация на вашем реальном HTTPS-сервере
-и игровая приёмка являются дополнительными проверками перед выдачей клиенту.
+Если проект восстанавливается из owner-комплекта, клонируйте bundle в новую
+пустую папку. Не распаковывайте поверх другого проекта. Удаление `origin`
+допустимо только когда он указывает на локальный bundle и не является нужным
+удалённым репозиторием. Затем добавьте фактический URL вашего GitHub-репозитория
+и отправьте проверенную ветку `main`.
 
-## 0.19.0 React/owner packages
+Не публикуйте owner ZIP целиком: он не является исходным деревом Git.
+`authority.json`, `master.pass`, `owner-connection.json`, `web-account.json`,
+`web-enrollment.json`, recovery-коды, access keys, база лицензий и игровые файлы
+не должны находиться в commits или публичных Actions artifacts.
 
-Держите репозиторий приватным. Основной CI выполняет Node-тесты и сборку pinned React,
-отдельный browser-owner-integration job использует настоящее Chromium-навигационное соединение.
-В нём --browser-bridge не используется. Manual owner-private-packages workflow работает
-только в private repo и сохраняет owner ZIP как artifact, не прикладывая его к клиентскому релизу.
-Не загружайте authority.json, пароли или web-enrollment в Git/Actions.
-Адрес admin-origin и web-account настраиваются только на сервере.
+## Что делает CI
+
+Обычный push и pull request запускают:
+
+1. Windows/Linux: Node-тесты, сборку закреплённых React-модулей, штатную сборку
+   .NET 9, C# self-tests, независимые validators, licensing lifecycle и synthetic demo.
+2. Linux: отдельный Chromium integration для владельца, MFA и резерва.
+3. Упаковку проверенного preview и сохранение отчётов Actions.
+
+По умолчанию preview без издателя заблокирован. Интеграционный тест создаёт
+собственного временного loopback-издателя и проверяет реально подписанные
+лицензии; это не настройка вашего production-сервера.
+
+`owner-private-packages` имеет условие `github.event.repository.private` и в
+публичном репозитории пропускается. Инструменты владельца собирайте локально
+через `python scripts/build_license_owner.py --rids linux-x64,win-x64`.
+Отсутствие owner ZIP в публичном release ожидаемо.
+
+## Клиентский релиз с вашим издателем
+
+В repository variable **LSP_LICENSE_TRUST_JSON** поместите содержимое только
+публичного `client-trust.json`: открытый ключ, issuer и HTTPS URL. Это не secret
+издателя. Workflow отклоняет `developmentLoopback` и закрытые поля.
+
+Локально проверьте профиль и соберите клиент:
+
+```powershell
+python scripts/license_build_profile.py C:\LspOwner\client-trust.json
+python scripts/build_release.py --rids win-x64 --license-trust C:\LspOwner\client-trust.json
+```
+
+После успешного CI создайте и отправьте тег `v<VERSION>` для проверенного коммита.
+`release.yml` повторит Windows/Linux проверки и создаст **draft prerelease** с
+клиентскими ZIP и SHA-256. Без корректного production trust profile job
+остановится. Не меняйте уже опубликованный тег для исправления ошибки: выпускайте
+новую patch-версию.
+
+Перед выдачей клиенту проверьте `license build-info`, активацию на реальном HTTPS
+сервере и условия [матрицы приёмки](CUSTOMER_ACCEPTANCE_RU.md). Успешная упаковка
+не утверждает готовность перевода или прохождение игры.

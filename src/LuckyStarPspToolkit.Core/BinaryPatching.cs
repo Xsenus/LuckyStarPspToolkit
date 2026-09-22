@@ -148,12 +148,13 @@ public static class BinaryPatchEngine
 public static class RgoScriptSizeTable
 {
     /// <summary>
-    /// Updates a script size and all following cumulative table entries in a copy of a verified RGO ELF.
+    /// Verifies the complete known RGO executable lineage, then updates one size and its following cumulative entries in a copy.
     /// </summary>
     /// <param name="decryptedElf">The decrypted ELF value.</param>
     /// <param name="scriptId">The numeric scenario identifier.</param>
     /// <param name="newSizeBytes">The new size bytes value.</param>
     /// <returns>The resulting binary or typed sequence.</returns>
+    /// <remarks>This low-level operation only changes the table. Larger scripts may also require the heap adjustment provided by the workspace EBOOT patch plan.</remarks>
     public static byte[] Update(ReadOnlySpan<byte> decryptedElf, ushort scriptId, int newSizeBytes)
     {
         Guard.Require(scriptId is >= RgoProfile.ScriptFirstId and <= RgoProfile.ScriptLastId,
@@ -167,6 +168,9 @@ public static class RgoScriptSizeTable
         int count = RgoProfile.ScriptLastId - RgoProfile.ScriptFirstId + 1;
         Guard.RequireRange(decryptedElf.Length, RgoProfile.ScriptSizeTableOffset, checked(count * 4),
             "RGO script size table");
+        RgoVwfPatchInspection inspection = RgoVwfPatchProfile.Inspect(decryptedElf);
+        Guard.Require(!inspection.SourceWasEncrypted && inspection.CompatibleKnownLineage,
+            "Refusing to update a script table without a decrypted EBOOT from the verified RGO executable lineage.");
         byte[] output = decryptedElf.ToArray();
         int index = scriptId - RgoProfile.ScriptFirstId;
         int offset = checked(RgoProfile.ScriptSizeTableOffset + index * 4);

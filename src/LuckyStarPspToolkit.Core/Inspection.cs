@@ -558,7 +558,7 @@ public static class InputInspector
         Guard.Require(!string.IsNullOrWhiteSpace(path), "ZIP contains an empty entry name.");
         Guard.Require(path.IndexOf('\0') < 0, "ZIP entry name contains a NUL character.");
         string normalized = path.Replace('\\', '/');
-        Guard.Require(!normalized.StartsWith('/', StringComparison.Ordinal),
+        Guard.Require(!normalized.StartsWith('/'),
             $"ZIP entry uses an absolute path: '{path}'.");
         Guard.Require(!(normalized.Length >= 2 && char.IsLetter(normalized[0]) && normalized[1] == ':'),
             $"ZIP entry uses a drive-qualified path: '{path}'.");
