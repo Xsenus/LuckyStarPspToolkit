@@ -34,6 +34,7 @@ namespace LuckyStarPspToolkit.Formats.Common;
 /// <param name="MaximumScriptBytes">Maximum bytes in one scenario, checked before source/output copies.</param>
 /// <param name="MaximumScriptFieldGlyphs">Maximum glyph words in one speaker, message or choice field.</param>
 /// <param name="MaximumScriptGlyphs">Aggregate decoded glyph words in one scenario; counted before array allocation.</param>
+/// <param name="MaximumCpkMetadataBytes">Maximum combined CPK header/ITOC packet bytes, checked before metadata copies.</param>
 public sealed record FileLimits(
     long MaximumInputBytes = 4L * 1024 * 1024 * 1024,
     int MaximumUtfRows = 1_000_000,
@@ -65,7 +66,8 @@ public sealed record FileLimits(
     long MaximumUtfDecodedBytes = 128L * 1024 * 1024,
     int MaximumScriptBytes = 64 * 1024 * 1024,
     int MaximumScriptFieldGlyphs = 1_000_000,
-    long MaximumScriptGlyphs = 8_000_000)
+    long MaximumScriptGlyphs = 8_000_000,
+    long MaximumCpkMetadataBytes = 32L * 1024 * 1024)
 {
     /// <summary>The default conservative limits for parsing caller-supplied data.</summary>
     public static FileLimits Default { get; } = new();

@@ -76,3 +76,11 @@ lsptool customer-audit <archive.zip> [--json report.json]
 ```
 
 The exact options and current aliases are printed by `lsptool --help`; scripts in `scripts/` provide common Windows and Linux workflows.
+
+## CPK implementation note (0.13.0)
+
+`cpk-list` now uses metadata-only inspection and range hashing; `cpk-extract`
+materializes only the selected file after layout preflight. The input CPK is
+still read into one bounded byte array. `cpk-verify` produces an exact no-op copy
+when no payload or extract-size was changed. These optimizations do not skip
+validation of descriptors, counts or compression headers.

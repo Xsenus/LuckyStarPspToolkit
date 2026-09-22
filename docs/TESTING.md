@@ -1,4 +1,4 @@
-# Testing and acceptance — 0.12.0
+# Testing and acceptance — 0.13.0
 
 ## Distinct layers, distinct evidence
 
@@ -83,3 +83,11 @@ or arithmetic exception. Counts and raw output are recorded in TEST_REPORT_RU.md
 `ScriptScaleFixture.cs` is shared by the two-version benchmark and `--probe`; no
 game binaries or prepared font files are distributed. Timing scope, JIT settings,
 managed-allocation caveats and recorded samples are in PERFORMANCE_RU.md.
+
+## CPK regressions added in 0.13.0
+
+11 groups cover exact no-op/ownership, auxiliary migration both ways, incompatible
+schemas, input/metadata budgets, unsigned ranges, extra indices, descriptor errors,
+metadata-only inspection/extraction, mutable entries, 65535/65536 transitions, 512
+header mutations and allocation scaling. `CpkScaleFixture` is compiled unchanged
+against old/new public APIs for recorded defect and allocation comparisons.

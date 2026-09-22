@@ -30,3 +30,11 @@ structural delimiter. A checksum word is not a legal substitute.
 before increasing limits. `SCRIPT_JUMP_INSIDE_TEXT` is still intentional when the
 target is strictly inside a genuinely changed record; unchanged records no longer
 trigger that error on a no-op rebuild.
+
+## CPK errors added in 0.13.0
+
+`CPK_METADATA_SCHEMA` means unknown fields cannot be transferred losslessly; do not
+drop fields to bypass it. `CPK_FILE_COUNT` flags inconsistent counts. `CPK_METADATA_LIMIT`
+is a metadata byte budget, not an out-of-memory error. `CPK_UNSUPPORTED_INDEX` rejects
+extra indices whose references this ITOC-only rebuilder cannot relocate.
+See [CPK_CODEC_RU.md](CPK_CODEC_RU.md) for all new preconditions.

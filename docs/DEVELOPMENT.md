@@ -1,4 +1,4 @@
-# Development — 0.12.0
+# Development — 0.13.0
 
 Use a stable .NET 9 SDK selected by global.json, Python 3.11+, and validation/requirements.txt. Runtime code has no third-party NuGet packages. The official NuGet source is still needed to restore Microsoft runtime packs for self-contained cross-RID publication.
 

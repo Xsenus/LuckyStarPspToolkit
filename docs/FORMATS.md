@@ -74,3 +74,10 @@ is allocated. Each field is bounded by the next record or checksum and by the
 per-field and aggregate glyph budgets. Only genuinely changed records participate
 in the relocation index; unchanged internal targets remain valid. See
 [SCRIPT_CODEC_RU.md](SCRIPT_CODEC_RU.md) for allocation bounds and boundary semantics.
+
+## CPK hardening in 0.13.0
+
+One `CriCpkLayout` preflight serves full Parse, metadata-only Inspect, targeted Extract,
+and Build verification. No-op is byte-identical; actual rebuilds preserve payloads and
+auxiliary class fields by name/type and reject incompatible schemas. Nonzero extra
+TOC/ETOC/GTOC indices are unsupported. See [CPK_CODEC_RU.md](CPK_CODEC_RU.md).

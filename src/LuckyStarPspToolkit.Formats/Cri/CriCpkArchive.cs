@@ -3,6 +3,21 @@ using LuckyStarPspToolkit.Formats.Common;
 
 namespace LuckyStarPspToolkit.Formats.Cri;
 
+/// <summary>A validated byte range in a CPK; it never owns or exposes mutable payload bytes.</summary>
+/// <param name="Id">Contiguous file identifier from the ITOC.</param>
+/// <param name="Offset">Absolute byte offset in the archive.</param>
+/// <param name="PackedSize">Length of the stored file bytes, excluding alignment padding.</param>
+/// <param name="ExtractSize">Expected length after optional CRILAYLA decoding.</param>
+/// <param name="IsCrilayla">Whether the stored frame has a validated CRILAYLA header.</param>
+public sealed record CriCpkFileInfo(ushort Id, int Offset, int PackedSize, int ExtractSize, bool IsCrilayla);
+
+/// <summary>Metadata-only inspection of an ITOC CPK; payload ownership stays with the caller.</summary>
+/// <param name="Alignment">Power-of-two file alignment.</param>
+/// <param name="ContentOffset">First content byte offset.</param>
+/// <param name="ItocOffset">Absolute ITOC chunk offset.</param>
+/// <param name="Entries">Read-only list of all validated payload ranges, in ID order.</param>
+public sealed record CriCpkInspection(int Alignment, int ContentOffset, int ItocOffset, IReadOnlyList<CriCpkFileInfo> Entries);
+
 /// <summary>
 /// Represents the toolkit's CRI CPK entry model or service.
 /// </summary>
@@ -23,7 +38,15 @@ public sealed class CriCpkEntry
     /// <param name="limits">Optional conservative safety limits; defaults are used when omitted.</param>
     /// <returns>The resulting binary or typed sequence.</returns>
     public byte[] GetExtractedData(FileLimits? limits = null)
-        => IsCrilayla ? CrilaylaCodec.Decompress(PackedData, limits) : PackedData.ToArray();
+    {
+        limits ??= FileLimits.Default;
+        if (PackedData is null || PackedData.Length == 0 || PackedData.Length > limits.MaximumInputBytes)
+            throw new ToolkitException("CPK_FILE_SIZE", "Packed file violates the configured size budget.");
+        int actualSize = IsCrilayla ? CrilaylaCodec.Inspect(PackedData, limits).ExtractedSize : PackedData.Length;
+        if (ExtractSize != actualSize)
+            throw new ToolkitException("CPK_EXTRACT_SIZE", "Extract size differs from the actual payload size.");
+        return IsCrilayla ? CrilaylaCodec.Decompress(PackedData, limits) : PackedData.ToArray();
+    }
 
     /// <summary>
     /// Creates a deep copy whose mutable buffers are independent of the source instance.
@@ -46,7 +69,7 @@ public sealed class CriCpkEntry
 public sealed record CriCpkBuildResult(byte[] Data, IReadOnlyDictionary<ushort, int> OldPackedSizes, IReadOnlyDictionary<ushort, int> NewPackedSizes);
 
 /// <summary>
-/// Represents the toolkit's CRI CPK archive model or service.
+/// Owns an editable snapshot of an ITOC-only CPK and rebuilds replacements with bounded validation.
 /// </summary>
 public sealed class CriCpkArchive
 {
@@ -117,6 +140,34 @@ public sealed class CriCpkArchive
     /// <summary>The itoc offset value used by this model or operation.</summary>
     public long ItocOffset => checked((long)_headerPacket.Table.GetUnsigned(0, "ItocOffset"));
 
+    /// <summary>Validates and lists files without copying archive or payload buffers.</summary>
+    /// <param name="data">Borrowed CPK bytes, which are not retained in the result.</param>
+    /// <param name="limits">Optional input and metadata allocation budgets.</param>
+    /// <returns>Immutable descriptors suitable for listing and range hashing.</returns>
+    /// <exception cref="ToolkitException">The archive layout or compression headers are invalid.</exception>
+    public static CriCpkInspection Inspect(ReadOnlySpan<byte> data, FileLimits? limits = null)
+    {
+        CriCpkLayout layout = CriCpkLayout.Parse(data, limits);
+        return new CriCpkInspection(layout.Alignment, layout.ContentOffset, layout.ItocOffset, Array.AsReadOnly(layout.Slices));
+    }
+
+    /// <summary>Validates the archive and copies or decodes exactly one file without materializing other payloads.</summary>
+    /// <param name="data">Borrowed source archive bytes.</param>
+    /// <param name="id">Contiguous ITOC file identifier.</param>
+    /// <param name="packed">Return packed frame bytes instead of decoding CRILAYLA when true.</param>
+    /// <param name="limits">Optional input, metadata and decompression limits.</param>
+    /// <returns>New owned bytes of the selected file.</returns>
+    /// <exception cref="ToolkitException">The ID, archive, frame, or a configured budget is invalid.</exception>
+    public static byte[] Extract(ReadOnlySpan<byte> data, ushort id, bool packed = false, FileLimits? limits = null)
+    {
+        CriCpkLayout layout = CriCpkLayout.Parse(data, limits);
+        if (id >= layout.Slices.Length)
+            throw new ToolkitException("CPK_ENTRY_NOT_FOUND", $"CPK entry {id} was not found.");
+        CriCpkFileInfo info = layout.Slices[id];
+        ReadOnlySpan<byte> bytes = data.Slice(info.Offset, info.PackedSize);
+        return info.IsCrilayla && !packed ? CrilaylaCodec.Decompress(bytes, limits) : bytes.ToArray();
+    }
+
     /// <summary>
     /// Parses validated input into the current binary-format model.
     /// </summary>
@@ -127,111 +178,25 @@ public sealed class CriCpkArchive
     public static CriCpkArchive Parse(ReadOnlySpan<byte> data, FileLimits? limits = null)
     {
         limits ??= FileLimits.Default;
-        if (data.Length < 32 || !data.StartsWith("CPK "u8))
-        {
-            throw new ToolkitException("CPK_MAGIC", "Input is not a CRI CPK archive.");
-        }
+        CriCpkLayout layout = CriCpkLayout.Parse(data, limits);
+        // Materialize payloads only after every descriptor/header has passed validation.
         byte[] original = data.ToArray();
-        CriUtfPacket headerPacket = CriUtfCodec.ParsePacket(data[4..], limits);
-        CriUtfTable header = headerPacket.Table;
-        if (header.Rows.Count != 1)
-        {
-            throw new ToolkitException("CPK_HEADER_ROWS", $"CPK header must have one row; found {header.Rows.Count}.");
-        }
-
-        long itocOffset64 = checked((long)header.GetUnsigned(0, "ItocOffset"));
-        int itocOffset = Guard.CheckedInt(itocOffset64, "CPK_ITOC_OFFSET", "ITOC offset");
-        if (itocOffset < 0 || itocOffset > data.Length - 16 || !data.Slice(itocOffset).StartsWith("ITOC"u8))
-        {
-            throw new ToolkitException("CPK_ITOC", $"ITOC chunk is missing at offset {itocOffset}.");
-        }
-        CriUtfPacket itocPacket = CriUtfCodec.ParsePacket(data[(itocOffset + 4)..], limits);
-        CriUtfTable itoc = itocPacket.Table;
-        if (itoc.Rows.Count != 1)
-        {
-            throw new ToolkitException("CPK_ITOC_ROWS", $"ITOC must have one row; found {itoc.Rows.Count}.");
-        }
-
-        byte[] dataLBytes = itoc.GetData(0, "DataL");
-        byte[] dataHBytes = itoc.GetData(0, "DataH");
-        if (dataLBytes.Length < 32 || dataHBytes.Length < 32)
-        {
-            throw new ToolkitException("CPK_ITOC_TABLE", "CPK ITOC DataL/DataH table is missing or too short.");
-        }
-        CriUtfTable dataL = CriUtfCodec.ParseTable(dataLBytes, limits);
-        CriUtfTable dataH = CriUtfCodec.ParseTable(dataHBytes, limits);
-        int declaredL = Guard.CheckedInt((long)itoc.GetUnsigned(0, "FilesL"), "CPK_FILE_COUNT", "FilesL");
-        int declaredH = Guard.CheckedInt((long)itoc.GetUnsigned(0, "FilesH"), "CPK_FILE_COUNT", "FilesH");
-        if (declaredL != dataL.Rows.Count || declaredH != dataH.Rows.Count)
-        {
-            throw new ToolkitException("CPK_FILE_COUNT", $"ITOC count mismatch: FilesL={declaredL}/{dataL.Rows.Count}, FilesH={declaredH}/{dataH.Rows.Count}.");
-        }
-        if (declaredL + declaredH > limits.MaximumCpkEntries)
-        {
-            throw new ToolkitException("CPK_ENTRY_LIMIT", $"CPK entry count {declaredL + declaredH} exceeds limit {limits.MaximumCpkEntries}.");
-        }
-
-        Dictionary<ushort, EntryDescriptor> descriptors = new();
-        Dictionary<ushort, CriUtfRow> lowRows = ReadDescriptors(dataL, true, descriptors);
-        Dictionary<ushort, CriUtfRow> highRows = ReadDescriptors(dataH, false, descriptors);
-        if (descriptors.Count != declaredL + declaredH)
-        {
-            throw new ToolkitException("CPK_DUPLICATE_ID", "CPK contains duplicate file IDs across DataL/DataH.");
-        }
-        ValidateContiguousIds(descriptors.Keys);
-
-        long contentOffset64 = checked((long)header.GetUnsigned(0, "ContentOffset"));
-        int contentOffset = Guard.CheckedInt(contentOffset64, "CPK_CONTENT_OFFSET", "CPK content offset");
-        int alignment = Guard.CheckedInt((long)header.GetUnsigned(0, "Align"), "CPK_ALIGN", "CPK alignment");
-        if (alignment <= 0 || alignment > 1024 * 1024 || (alignment & (alignment - 1)) != 0)
-        {
-            throw new ToolkitException("CPK_ALIGN", $"Unsupported CPK alignment {alignment}; expected a power of two up to 1 MiB.");
-        }
-        int itocActualEnd = checked(itocOffset + 4 + itocPacket.OriginalPacketLength);
-        if (contentOffset < itocActualEnd || contentOffset > data.Length)
-        {
-            throw new ToolkitException("CPK_CONTENT_OFFSET", $"CPK content offset {contentOffset} is invalid; ITOC ends at {itocActualEnd}.");
-        }
-
         SortedDictionary<ushort, CriCpkEntry> entries = new();
-        int position = contentOffset;
-        foreach ((ushort id, EntryDescriptor descriptor) in descriptors.OrderBy(static pair => pair.Key))
+        foreach (CriCpkFileInfo slice in layout.Slices)
         {
-            if (descriptor.PackedSize < 0 || position > data.Length - descriptor.PackedSize)
+            entries.Add(slice.Id, new CriCpkEntry
             {
-                throw new ToolkitException("CPK_CONTENT_RANGE", $"CPK entry {id} exceeds archive bounds at offset {position}.");
-            }
-            byte[] packed = data.Slice(position, descriptor.PackedSize).ToArray();
-            bool compressed = CrilaylaCodec.IsFrame(packed);
-            if (compressed)
-            {
-                CrilaylaInfo info = CrilaylaCodec.Inspect(packed, limits);
-                if (info.ExtractedSize != descriptor.ExtractSize)
-                {
-                    throw new ToolkitException("CPK_EXTRACT_SIZE", $"CPK entry {id} declares extract size {descriptor.ExtractSize}, CRILAYLA declares {info.ExtractedSize}.");
-                }
-            }
-            else if (descriptor.ExtractSize != descriptor.PackedSize)
-            {
-                throw new ToolkitException("CPK_COMPRESSION", $"CPK entry {id} has differing packed/extract sizes without recognized CRILAYLA compression.");
-            }
-            entries.Add(id, new CriCpkEntry { Id = id, PackedData = packed, ExtractSize = descriptor.ExtractSize });
-            position = checked((int)BinaryUtilities.Align((long)position + descriptor.PackedSize, alignment));
+                Id = slice.Id,
+                PackedData = data.Slice(slice.Offset, slice.PackedSize).ToArray(),
+                ExtractSize = slice.ExtractSize
+            });
         }
-
-        ulong headerItocSize = header.GetUnsigned(0, "ItocSize");
-        long actualItocChunk = checked(4L + itocPacket.OriginalPacketLength);
-        long itocSizeBias = checked((long)headerItocSize - actualItocChunk);
-        if (Math.Abs(itocSizeBias) > 0x1000)
-        {
-            throw new ToolkitException("CPK_ITOC_SIZE", $"Header ITOC size differs from actual chunk by unexpected bias {itocSizeBias}.");
-        }
-
-        return new CriCpkArchive(original, headerPacket, itocPacket, dataL, dataH, entries, lowRows, highRows, itocSizeBias);
+        return new CriCpkArchive(original, layout.HeaderPacket, layout.ItocPacket,
+            layout.DataL, layout.DataH, entries, layout.LowRows, layout.HighRows, layout.ItocSizeBias);
     }
 
     /// <summary>
-    /// Gets entry while enforcing the relevant format and safety invariants.
+    /// Looks up a mutable file entry by ID; Build revalidates any direct payload or size changes.
     /// </summary>
     /// <param name="id">The numeric resource identifier.</param>
     /// <returns>The validated operation result.</returns>
@@ -245,7 +210,7 @@ public sealed class CriCpkArchive
     }
 
     /// <summary>
-    /// Replaces entry while enforcing the relevant format and safety invariants.
+    /// Copies an uncompressed replacement into the existing file ID without touching the original archive snapshot.
     /// </summary>
     /// <param name="id">The numeric resource identifier.</param>
     /// <param name="uncompressedData">The uncompressed data value.</param>
@@ -264,7 +229,7 @@ public sealed class CriCpkArchive
     }
 
     /// <summary>
-    /// Serializes the current validated model into its binary representation.
+    /// Returns an exact copy for unchanged content; otherwise rebuilds ITOC metadata and verifies every file range.
     /// </summary>
     /// <param name="limits">Optional conservative safety limits; defaults are used when omitted.</param>
     /// <returns>The validated operation result.</returns>
@@ -272,6 +237,24 @@ public sealed class CriCpkArchive
     public CriCpkBuildResult Build(FileLimits? limits = null)
     {
         limits ??= FileLimits.Default;
+        CriCpkLayout originalLayout = CriCpkLayout.Parse(_originalBytes, limits);
+        if (_entries.Count != originalLayout.Slices.Length)
+            throw new ToolkitException("CPK_ENTRY_MUTATION", "Adding/removing CPK entries is not supported.");
+        bool unchanged = true;
+        foreach (CriCpkFileInfo slice in originalLayout.Slices)
+        {
+            if (!_entries.TryGetValue(slice.Id, out CriCpkEntry? entry) || entry.Id != slice.Id || entry.PackedData is null || entry.ExtractSize <= 0)
+                throw new ToolkitException("CPK_ENTRY_MUTATION", "CPK entry identity or size was modified inconsistently.");
+            if (entry.PackedData.Length == 0 || entry.PackedData.Length > limits.MaximumInputBytes)
+                throw new ToolkitException("CPK_FILE_SIZE", "CPK replacement violates the nonempty file size budget.");
+            bool compressed = CrilaylaCodec.IsFrame(entry.PackedData);
+            int actualSize = compressed ? CrilaylaCodec.Inspect(entry.PackedData, limits).ExtractedSize : entry.PackedData.Length;
+            if (entry.ExtractSize != actualSize)
+                throw new ToolkitException("CPK_EXTRACT_SIZE", "Entry extract size no longer matches its payload.");
+            unchanged &= slice.ExtractSize == entry.ExtractSize && _originalBytes.AsSpan(slice.Offset, slice.PackedSize).SequenceEqual(entry.PackedData);
+        }
+        if (unchanged)
+            return new CriCpkBuildResult(_originalBytes.ToArray(), new SortedDictionary<ushort, int>(_originalPackedSizes), new SortedDictionary<ushort, int>(_originalPackedSizes));
         ValidateContiguousIds(_entries.Keys);
         var low = new List<CriCpkEntry>(_entries.Count);
         var high = new List<CriCpkEntry>();
@@ -290,8 +273,8 @@ public sealed class CriCpkArchive
                 high.Add(entry);
             }
         }
-        CriUtfTable dataL = BuildDataTable(_dataLTemplate, low, _originalLowRows);
-        CriUtfTable dataH = BuildDataTable(_dataHTemplate, high, _originalHighRows);
+        CriUtfTable dataL = BuildDataTable(_dataLTemplate, low);
+        CriUtfTable dataH = BuildDataTable(_dataHTemplate, high);
         byte[] dataLBytes = CriUtfCodec.BuildTable(dataL);
         byte[] dataHBytes = CriUtfCodec.BuildTable(dataH);
 
@@ -364,25 +347,21 @@ public sealed class CriCpkArchive
         headerPacketBytes.CopyTo(output.AsSpan(4));
         "ITOC"u8.CopyTo(output.AsSpan(itocOffsetInt));
         itocPacketBytes.CopyTo(output.AsSpan(itocOffsetInt + 4));
-        int position = contentOffset;
+        long position = contentOffset;
         foreach (CriCpkEntry entry in _entries.Values)
         {
-            entry.PackedData.CopyTo(output.AsSpan(position));
-            position = checked((int)BinaryUtilities.Align((long)position + entry.PackedData.Length, alignment));
+            entry.PackedData.CopyTo(output.AsSpan((int)position));
+            position = BinaryUtilities.Align(position + entry.PackedData.Length, alignment);
         }
 
-        CriCpkArchive verification = Parse(output, limits);
-        if (verification.Entries.Count != _entries.Count)
-        {
+        CriCpkLayout verification = CriCpkLayout.Parse(output, limits);
+        if (verification.Slices.Length != _entries.Count)
             throw new ToolkitException("CPK_VERIFY_COUNT", "Rebuilt CPK entry count verification failed.");
-        }
-        foreach ((ushort id, CriCpkEntry expected) in _entries)
+        foreach (CriCpkFileInfo slice in verification.Slices)
         {
-            CriCpkEntry actual = verification.GetEntry(id);
-            if (actual.ExtractSize != expected.ExtractSize || !actual.PackedData.AsSpan().SequenceEqual(expected.PackedData))
-            {
-                throw new ToolkitException("CPK_VERIFY_ENTRY", $"Rebuilt CPK entry {id} failed byte-for-byte verification.");
-            }
+            CriCpkEntry expected = _entries[slice.Id];
+            if (slice.ExtractSize != expected.ExtractSize || !output.AsSpan(slice.Offset, slice.PackedSize).SequenceEqual(expected.PackedData))
+                throw new ToolkitException("CPK_VERIFY_ENTRY", $"Rebuilt CPK entry {slice.Id} failed byte-for-byte verification.");
         }
 
         return new CriCpkBuildResult(
@@ -391,63 +370,93 @@ public sealed class CriCpkArchive
             new SortedDictionary<ushort, int>(_entries.ToDictionary(static pair => pair.Key, static pair => pair.Value.PackedData.Length)));
     }
 
-    /// <summary>
-    /// Reads descriptors while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="table">The table value.</param>
-    /// <param name="low">The low value.</param>
-    /// <param name="output">The destination stream, buffer, or model.</param>
-    /// <returns>The validated operation result.</returns>
-    private static Dictionary<ushort, CriUtfRow> ReadDescriptors(CriUtfTable table, bool low, Dictionary<ushort, EntryDescriptor> output)
+    /// <summary>Rebuilds rows by field name, preserving auxiliary values when a file crosses the DataL/DataH threshold.</summary>
+    /// <param name="template">Destination schema; columns are cloned without copying unused source rows.</param>
+    /// <param name="entries">Ordered entries assigned to the destination size class.</param>
+    /// <returns>A new table whose values are independent of both original templates.</returns>
+    /// <exception cref="ToolkitException">An auxiliary source field has no compatible destination field.</exception>
+    private CriUtfTable BuildDataTable(CriUtfTable template, IReadOnlyList<CriCpkEntry> entries)
     {
-        Dictionary<ushort, CriUtfRow> rows = new();
-        for (int i = 0; i < table.Rows.Count; i++)
+        CriUtfTable table = new() { Name = template.Name };
+        table.Columns.AddRange(template.Columns.Select(static column => column.Clone()));
+        foreach (string name in new[] { "ID", "FileSize", "ExtractSize" })
+            table.Columns[table.GetColumnIndex(name)].Storage = CriUtfStorage.PerRow;
+        int[]? lowMapping = null;
+        int[]? highMapping = null;
+        foreach (CriCpkEntry entry in entries)
         {
-            ushort id = Guard.CheckedUInt16((long)table.GetUnsigned(i, "ID"), "CPK_ID", "CPK file ID");
-            int packed = Guard.CheckedInt((long)table.GetUnsigned(i, "FileSize"), "CPK_FILE_SIZE", $"CPK entry {id} packed size");
-            int extracted = Guard.CheckedInt((long)table.GetUnsigned(i, "ExtractSize"), "CPK_EXTRACT_SIZE", $"CPK entry {id} extract size");
-            if (packed <= 0 || extracted <= 0)
+            bool wasLow = _originalLowRows.TryGetValue(entry.Id, out CriUtfRow? sourceRow);
+            sourceRow ??= _originalHighRows[entry.Id];
+            CriUtfTable source = wasLow ? _dataLTemplate : _dataHTemplate;
+            int[] mapping = wasLow
+                ? lowMapping ??= BuildAuxiliaryMapping(source, template)
+                : highMapping ??= BuildAuxiliaryMapping(source, template);
+            CriUtfRow row = table.CreateEmptyRow();
+            for (int column = 0; column < table.Columns.Count; column++)
             {
-                throw new ToolkitException("CPK_FILE_SIZE", $"CPK entry {id} has non-positive sizes {packed}/{extracted}.");
+                string name = table.Columns[column].Name;
+                if (name is not ("ID" or "FileSize" or "ExtractSize"))
+                    row.Values[column] = sourceRow.Values[mapping[column]].Clone();
             }
-            if (low && (packed > ushort.MaxValue || extracted > ushort.MaxValue))
-            {
-                throw new ToolkitException("CPK_DATAL_RANGE", $"DataL entry {id} exceeds UInt16 size.");
-            }
-            if (!output.TryAdd(id, new EntryDescriptor(packed, extracted)))
-            {
-                throw new ToolkitException("CPK_DUPLICATE_ID", $"Duplicate CPK entry ID {id}.");
-            }
-            rows.Add(id, table.Rows[i].Clone());
-        }
-        return rows;
-    }
-
-    /// <summary>
-    /// Builds data table while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="template">The template value.</param>
-    /// <param name="entries">The entries value.</param>
-    /// <param name="originalRows">The original rows value.</param>
-    /// <returns>The validated operation result.</returns>
-    /// <remarks>Malformed input or violated preconditions are rejected before a persistent output is committed.</remarks>
-    private static CriUtfTable BuildDataTable(CriUtfTable template, IReadOnlyList<CriCpkEntry> entries, IReadOnlyDictionary<ushort, CriUtfRow> originalRows)
-    {
-        CriUtfTable table = template.Clone();
-        table.Rows.Clear();
-        foreach (CriCpkEntry entry in entries.OrderBy(static item => item.Id))
-        {
-            CriUtfRow row = originalRows.TryGetValue(entry.Id, out CriUtfRow? original)
-                ? original.Clone()
-                : table.CreateEmptyRow();
             table.Rows.Add(row);
             int rowIndex = table.Rows.Count - 1;
             table.SetUnsigned(rowIndex, "ID", entry.Id);
-            table.SetUnsigned(rowIndex, "FileSize", checked((ulong)entry.PackedData.Length));
-            table.SetUnsigned(rowIndex, "ExtractSize", checked((ulong)entry.ExtractSize));
+            table.SetUnsigned(rowIndex, "FileSize", (ulong)entry.PackedData.Length);
+            table.SetUnsigned(rowIndex, "ExtractSize", (ulong)entry.ExtractSize);
+        }
+        // A source value may differ from the destination's shared constant. Promote
+        // the whole column rather than silently overwrite other rows or drop metadata.
+        for (int column = 0; column < table.Columns.Count; column++)
+        {
+            CriUtfColumn definition = table.Columns[column];
+            if (definition.Storage == CriUtfStorage.PerRow) continue;
+            CriUtfValue shared = definition.Storage == CriUtfStorage.Constant ? definition.ConstantValue : new CriUtfValue();
+            if (table.Rows.Any(row => !ValuesEqual(definition.Type, row.Values[column], shared)))
+                definition.Storage = CriUtfStorage.PerRow;
         }
         return table;
     }
+
+    /// <summary>Computes a field-name mapping once per source schema and rejects lossy migrations.</summary>
+    /// <param name="source">Schema in which the original file row was encoded.</param>
+    /// <param name="target">Schema selected by the replacement's packed/extracted size.</param>
+    /// <returns>Source column indices for each target auxiliary column; required size fields use -1.</returns>
+    /// <exception cref="ToolkitException">Auxiliary names or exact field types differ between the size classes.</exception>
+    private static int[] BuildAuxiliaryMapping(CriUtfTable source, CriUtfTable target)
+    {
+        var fields = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < source.Columns.Count; i++)
+            if (source.Columns[i].Name is not ("ID" or "FileSize" or "ExtractSize"))
+                fields.Add(source.Columns[i].Name, i);
+        int[] mapping = new int[target.Columns.Count];
+        Array.Fill(mapping, -1);
+        int matched = 0;
+        for (int i = 0; i < target.Columns.Count; i++)
+        {
+            CriUtfColumn column = target.Columns[i];
+            if (column.Name is "ID" or "FileSize" or "ExtractSize") continue;
+            if (!fields.TryGetValue(column.Name, out int sourceIndex) || source.Columns[sourceIndex].Type != column.Type)
+                throw new ToolkitException("CPK_METADATA_SCHEMA", $"Cannot migrate unknown field '{column.Name}' without changing its meaning.");
+            mapping[i] = sourceIndex;
+            matched++;
+        }
+        if (matched != fields.Count)
+            throw new ToolkitException("CPK_METADATA_SCHEMA", "Destination size class is missing an original auxiliary field.");
+        return mapping;
+    }
+
+    /// <summary>Compares a UTF field without conflating floating-point bit patterns or binary contents.</summary>
+    /// <param name="type">Encoded field type.</param>
+    /// <param name="left">First row/constant value.</param>
+    /// <param name="right">Second row/constant value.</param>
+    /// <returns>Whether serialization of the values has the same meaning.</returns>
+    private static bool ValuesEqual(CriUtfType type, CriUtfValue left, CriUtfValue right) => type switch
+    {
+        CriUtfType.String => string.Equals(left.Text, right.Text, StringComparison.Ordinal),
+        CriUtfType.Data => left.Data.AsSpan().SequenceEqual(right.Data),
+        CriUtfType.Single => BitConverter.SingleToInt32Bits(left.Single) == BitConverter.SingleToInt32Bits(right.Single),
+        _ => left.Unsigned == right.Unsigned
+    };
 
     /// <summary>
     /// Sets if present while enforcing the relevant format and safety invariants.
@@ -485,10 +494,4 @@ public sealed class CriCpkArchive
         }
     }
 
-    /// <summary>
-    /// Represents immutable entry descriptor data exchanged by the toolkit.
-    /// </summary>
-    /// <param name="PackedSize">The packed size value used by this model or operation.</param>
-    /// <param name="ExtractSize">The expected decoded payload length, in bytes.</param>
-    private sealed record EntryDescriptor(int PackedSize, int ExtractSize);
 }

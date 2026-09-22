@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0 — 2026-09-22
+
+- Add metadata-only CPK inspection and targeted extraction; reuse one layout validator throughout.
+- Preserve byte-identical no-op archives and auxiliary fields across DataL/DataH migrations.
+- Reject inconsistent header counts, unsupported extra indices, invalid UInt64 ranges and metadata budgets.
+- Verify rebuilt payload spans without a second full parse/copy; precompute auxiliary field maps.
+- Add 11 executed C# regression groups, 512 CPK header mutations and old/new allocation probes.
+- Preserve actual Git lineage and release workflows; native .NET 9/game acceptance remains unverified.
+
 ## 0.12.0 — 2026-09-22
 
 Bounded scenario parser and single-buffer builder; preserve byte-identical no-ops

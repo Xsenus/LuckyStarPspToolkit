@@ -746,7 +746,7 @@ public static class CommandApplication
         string path = FormatPathUtilities.Normalize(options.Positionals[0]);
         RequireReportDifferent(options.GetOption("--json"), path);
         byte[] input = FormatBinaryUtilities.ReadAllBytesBounded(path);
-        CriCpkArchive archive = CriCpkArchive.Parse(input);
+        CriCpkInspection archive = CriCpkArchive.Inspect(input);
         var model = new
         {
             schema = "lucky-star-psp.cpk-list.v1",
@@ -756,13 +756,13 @@ public static class CommandApplication
             alignment = archive.Alignment,
             contentOffset = archive.ContentOffset,
             itocOffset = archive.ItocOffset,
-            entries = archive.Entries.Values.Select(entry => new
+            entries = archive.Entries.Select(entry => new
             {
                 id = entry.Id,
-                packedSize = entry.PackedData.Length,
+                packedSize = entry.PackedSize,
                 extractSize = entry.ExtractSize,
                 compressed = entry.IsCrilayla,
-                sha256 = FormatBinaryUtilities.Sha256Hex(entry.PackedData)
+                sha256 = FormatBinaryUtilities.Sha256Hex(input.AsSpan(entry.Offset, entry.PackedSize))
             }).ToArray()
         };
         var human = new StringBuilder();
@@ -848,10 +848,9 @@ public static class CommandApplication
             "Extraction output cannot overwrite the source CPK.");
         RequireReportDifferent(options.GetOption("--json"), sourcePath, outputPath);
         ushort id = ParseUShort(options.Positionals[1], "id");
-        CriCpkArchive archive = CriCpkArchive.Parse(FormatBinaryUtilities.ReadAllBytesBounded(sourcePath));
-        CriCpkEntry entry = archive.GetEntry(id);
+        byte[] input = FormatBinaryUtilities.ReadAllBytesBounded(sourcePath);
         bool packed = options.HasFlag("--packed");
-        byte[] output = packed ? entry.PackedData.ToArray() : entry.GetExtractedData();
+        byte[] output = CriCpkArchive.Extract(input, id, packed);
         FormatAtomicFile.WriteAllBytes(outputPath, output);
         var report = new
         {

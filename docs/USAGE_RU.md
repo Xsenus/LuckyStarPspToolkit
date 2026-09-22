@@ -1,4 +1,4 @@
-# Запуск и сборка 0.12.0
+# Запуск и сборка 0.13.0
 
 ## 1. Что можно обещать заказчику
 
@@ -39,13 +39,13 @@ Visual Studio необязательна. Обычный `dotnet build LuckyStar
 После успешной команды:
 
 ```text
-artifacts/releases/0.12.0/
+artifacts/releases/0.13.0/
   win-x64/lsptool.exe
   win-x64/BUILD-STATUS.json
   win-x64/docs/
   win-x64/profiles/
-  LuckyStarPspToolkit-0.12.0-win-x64.zip
-  LuckyStarPspToolkit-0.12.0-win-x64.zip.sha256
+  LuckyStarPspToolkit-0.13.0-win-x64.zip
+  LuckyStarPspToolkit-0.13.0-win-x64.zip.sha256
   build-report.json
 ```
 
@@ -54,7 +54,7 @@ artifacts/releases/0.12.0/
 Проверьте из папки `project`:
 
 ```powershell
-$exe = '.\artifacts\releases\0.12.0\win-x64\lsptool.exe'
+$exe = '.\artifacts\releases\0.13.0\win-x64\lsptool.exe'
 & $exe version
 & $exe --help
 & $exe self-test
@@ -107,3 +107,17 @@ New-Item -ItemType Directory -Force .\private | Out-Null
 ## 7. Когда остановиться
 
 Любой FAIL в build-report, C#-тестах, повторном разборе CPK, checksum, EBOOT-preconditions или ISO проверке — причина не передавать продукт как рабочий. Не обходите ошибку удалением хэшей и отключением защитных проверок. Сохраните папку логов и исправьте причину.
+
+## Проверка CPK 0.13.0
+
+Команды остались совместимыми:
+
+```powershell
+& $exe cpk-list sc.cpk
+& $exe cpk-extract sc.cpk 0 script-0.bin
+& $exe cpk-verify sc.cpk --rebuilt sc-copy.cpk
+```
+
+Сначала no-op проверка на копии: `byte-identical: yes`. Для изменённого контейнера
+совпадение общего SHA не ожидается. `cpk-list` не копирует вложенные payloads,
+но исходный CPK всё ещё читается целиком в ограниченный byte[].

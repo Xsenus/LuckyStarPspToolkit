@@ -37,6 +37,8 @@ internal static partial class SelfTestRunner
     {
         try
         {
+            if (args.Contains("--cpk-benchmark", StringComparer.Ordinal) || args.Contains("--cpk-probe", StringComparer.Ordinal))
+                return CpkScaleFixture.Run(args);
             if (args.Contains("--script-benchmark", StringComparer.Ordinal) || args.Contains("--probe", StringComparer.Ordinal))
                 return ScriptScaleFixture.Run(args);
             Test("duplicate and escaped JSON properties", TestStrictJson);
@@ -71,6 +73,17 @@ internal static partial class SelfTestRunner
             Test("1024 deterministic scenario header mutations", TestScriptHeaderFuzz);
             Test("independent CPK/ITOC and CRILAYLA fixture", TestCpkParse);
             Test("CPK replacement and verified rebuild", TestCpkRebuild);
+            Test("CPK byte-identical no-op and independent output ownership", TestCpkNoOpPreservation);
+            Test("CPK auxiliary metadata across DataL and DataH", TestCpkAuxiliaryMigration);
+            Test("CPK unknown schema migration fails closed", TestCpkIncompatibleMetadata);
+            Test("CPK input, metadata and integer preflight", TestCpkPreflight);
+            Test("CPK unsupported supplementary indices and aggregate budget", TestCpkExtraIndex);
+            Test("CPK malformed class counts, IDs and descriptor types", TestCpkDescriptorErrors);
+            Test("CPK metadata-only inspection and single-file extraction", TestCpkInspection);
+            Test("CPK direct entry mutation safety", TestCpkEntryMutation);
+            Test("CPK repeated UInt16 size threshold migrations", TestCpkThresholds);
+            Test("CPK 512 deterministic header mutations", TestCpkHeaderFuzz);
+            Test("CPK allocation scaling excludes duplicate payload copies", TestCpkAllocationScaling);
             Test("workspace validation and JSON end-to-end", TestWorkspace);
             Test("workspace tamper, strict JSON, and control-code rejection", TestWorkspaceSafety);
             Test("transactional multi-file output", TestAtomicWriteSet);
