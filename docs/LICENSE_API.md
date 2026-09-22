@@ -57,3 +57,10 @@ They never grant access, extend a previous lease, or allow a fresh command offli
 HTTP 200 body remains a protocol failure. HTTP errors/network loss never extend a previous grant. Other explicit denials terminate the session.
 Administrative tokens and access keys must not appear in URL query strings or request logs.
 No CORS/browser integration or multi-tenant product administration is implemented.
+
+## Additions in 0.16.0
+
+POST /v1/reserve uses ReserveRefreshRequest {grantId, request}; request is a fresh proof for
+action=check. Returns nonce-bound LSPR1 offline token, TTL<=604800 and <=parent expiry.
+Separate loopback browser cookie API is documented in ADMIN_ARCHITECTURE_RU.md. It is not
+a public exposure of /admin bearer routes.

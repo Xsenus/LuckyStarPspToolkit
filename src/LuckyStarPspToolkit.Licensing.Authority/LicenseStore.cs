@@ -110,7 +110,7 @@ public sealed class LicenseStore : IDisposable
         lock (sync)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (state.Schema == 1) Commit(state with { Schema = 2 }, now);
+            if (state.Schema < 3) Commit(state with { Schema = 3 }, now);
         }
     }
 

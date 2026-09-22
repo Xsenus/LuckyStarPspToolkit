@@ -1,0 +1,33 @@
+# Optional replacement for the base service, not a second authority process.
+[Unit]
+Description=Lucky Star toolkit private license authority
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lsptool-license
+Group=lsptool-license
+WorkingDirectory=/var/lib/lsptool-license
+ExecStart=/opt/lsptool-license/server/lsp-license-server --data /var/lib/lsptool-license/authority --password-file /etc/lsptool-license/master.pass --web-root /opt/lsptool-license/web --web-port 17842
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lsptool-license
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+MemoryMax=512M
+LimitNOFILE=2048
+Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1
+Environment=DOTNET_NOLOGO=1
+
+[Install]
+WantedBy=multi-user.target

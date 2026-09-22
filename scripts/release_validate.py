@@ -81,6 +81,13 @@ def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
         ('python-release-unit-tests', ['-m', 'unittest', 'discover', '-s', 'validation', '-p', 'test_release_pipeline.py', '-v']),
     ]:
         run(name, [sys.executable, *args])
+    node = shutil.which('node')
+    if node:
+        run('react-model-tests', [node, '--test', 'web/license-admin/tests/model.test.mjs'])
+        run('react-vendor-integrity-and-build', [node, 'web/license-admin/build.mjs'])
+    else:
+        skip('react-build', 'Node.js is not installed.')
+    skip('native-browser-https-cookie-csp', 'Local bridge test is reported separately; production TLS/native browser enforcement requires native browser CI and deployed HTTPS.')
     if (ROOT / '.git').exists():
         run('git-whitespace', ['git', 'diff', '--check', 'HEAD'])
     else:

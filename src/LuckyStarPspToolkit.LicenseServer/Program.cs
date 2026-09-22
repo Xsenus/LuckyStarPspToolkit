@@ -14,11 +14,11 @@ internal static class ServerProgram
         try
         {
             if (args.Length == 1 && args[0] == "--help")
-            { Console.WriteLine("lsp-license-server --data PRIVATE_DIR --password-file PRIVATE_FILE [--public-port 17840 --admin-port 17841]"); return 0; }
+            { Console.WriteLine("lsp-license-server --data PRIVATE_DIR --password-file PRIVATE_FILE [--public-port 17840 --admin-port 17841] [--web-root COMPILED_FRONTEND --web-port 17842]"); return 0; }
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
             for (int i = 0; i < args.Length; i += 2)
             {
-                if (i + 1 >= args.Length || args[i] is not ("--data" or "--password-file" or "--public-port" or "--admin-port") || !values.TryAdd(args[i], args[i + 1]))
+                if (i + 1 >= args.Length || args[i] is not ("--data" or "--password-file" or "--public-port" or "--admin-port" or "--web-root" or "--web-port") || !values.TryAdd(args[i], args[i + 1]))
                     throw new LicenseException("USAGE", "Invalid server option.");
             }
             if (!values.TryGetValue("--data", out string? directory) || !values.TryGetValue("--password-file", out string? passwordFile))
@@ -28,16 +28,20 @@ internal static class ServerProgram
             int publicPort = int.Parse(values.GetValueOrDefault("--public-port", "17840"), System.Globalization.CultureInfo.InvariantCulture);
             int adminPort = int.Parse(values.GetValueOrDefault("--admin-port", "17841"), System.Globalization.CultureInfo.InvariantCulture);
             await using var server = new LicenseHttpServer(authority, publicPort, adminPort);
-            server.Start();
+            int webPort = int.Parse(values.GetValueOrDefault("--web-port", "17842"), System.Globalization.CultureInfo.InvariantCulture);
+            if (values.ContainsKey("--web-port") && !values.ContainsKey("--web-root")) throw new LicenseException("WEB_CONFIG", "--web-port requires --web-root.");
+            if (values.ContainsKey("--web-root") && (webPort == publicPort || webPort == adminPort)) throw new LicenseException("WEB_PORT", "All three listener ports must differ.");
+            await using var web = values.TryGetValue("--web-root", out string? webRoot) ? new LicenseWebServer(authority, directory, webRoot, webPort) : null;
+            server.Start(); web?.Start();
             using var shutdown = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => { e.Cancel = true; shutdown.Cancel(); };
             using var sigterm = OperatingSystem.IsWindows() ? null : System.Runtime.InteropServices.PosixSignalRegistration.Create(
                 System.Runtime.InteropServices.PosixSignal.SIGTERM, context => { context.Cancel = true; shutdown.Cancel(); });
-            Console.WriteLine($"License authority ready. Public backend=127.0.0.1:{publicPort}; private admin=127.0.0.1:{adminPort}. TLS proxy is required.");
+            Console.WriteLine($"License authority ready. Public backend=127.0.0.1:{publicPort}; private admin=127.0.0.1:{adminPort}; browser={(web is null ? "disabled" : "127.0.0.1:" + webPort)}. TLS proxy is required.");
             try
             {
                 Task wait = Task.Delay(Timeout.Infinite, shutdown.Token);
-                Task completed = await Task.WhenAny(wait, server.Completion).ConfigureAwait(false);
+                Task completed = await Task.WhenAny(wait, server.Completion, web?.Completion ?? wait).ConfigureAwait(false);
                 await completed.ConfigureAwait(false);
                 if (!shutdown.IsCancellationRequested) throw new LicenseException("LISTENER_STOPPED", "License listeners stopped unexpectedly.");
             }

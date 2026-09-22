@@ -21,3 +21,11 @@ The CLI uses the .NET base class library and has no third-party runtime NuGet de
 ## Game/platform data and fonts
 
 Lucky Star and PlayStation names identify interoperability targets. No original EBOOT, ISO, CPK, SFO, PMF, artwork, game translation, firmware, font file or proprietary SDK is distributed in this source snapshot. Synthetic fixtures are recreated locally from code; generated binary font/ISO fixtures are not committed. Users must provide their own authorized source material. Game assets and font licenses are separate from this toolkit's LICENSE.
+
+## React browser production modules (0.16.0)
+
+Four pinned modules (React, react-dom, react-dom/client, scheduler) from react/react official CI
+oss-stable-semver artifact at commit 59aff3e18cb5b3a336c280bbfa57ec37999511b9 are included under MIT.
+Exact artifact and file hashes are in web/license-admin/vendor-manifest.json; license text is retained
+in vendor/react/LICENSE.txt and copied to production frontend THIRD_PARTY_LICENSES.txt.
+This provenance does not assert byte identity to an npm release. No React Server Components are shipped.

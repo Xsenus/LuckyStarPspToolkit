@@ -95,3 +95,13 @@ TLS/DNS/сертификат, закрытые owner-токен и passphrase, �
 - Nginx proxy module: https://nginx.org/en/docs/http/ngx_http_proxy_module.html
 
 Ссылки описывают используемые примитивы/практики, а не внешнюю сертификацию проекта.
+
+## 0.16.0: explicit bounded exception to online-only policy
+
+Ordinary licenses stay online-only. Explicit per-installation reserve grants can run offline
+up to168h, capped by parent license expiry. Revocation cannot reach disconnected clients
+before the signed deadline. A learned explicit online denial is persisted; network failures
+do not clear it. VM snapshots, patched binaries, local OS compromise are not prevented
+perfectly. Web administration uses a separate loopback MFA/cookie endpoint. See
+RESERVE_ACCESS_RU.md and ADMIN_ARCHITECTURE_RU.md; these define the new behavior rather
+than historical statements of strictly no offline permissions.

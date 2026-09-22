@@ -1,78 +1,70 @@
-# Фактическая проверка 0.15.0
+# Фактическое тестирование 0.16.0
 
-## Подлинная исходная база
+Дата выполнения: 2026-09-22. База: commit 348d90531bac48be3b321ea9f24ab2f788c2f78c (v0.15.0).
+Проверки выполнены на исходном C# коде, не по нарисованным status-файлам. Дополнительные ограничения ниже
+обязательны при передаче результатов: native .NET9/Windows/TLS/игра не заменены диагностикой.
 
-Продолжен тег v0.14.0 и commit `5a58d7a57b19e77fa05eaefc9c093c036dab612a`.
-SHA-256 переданного ALL_IN_ONE:
-`dfdb3d4271bd0db43adf7b5e3cfa0ec230c6835da84cfd7e604fb4f51a2f7ae0`.
-Все 293 исходных Git-файла совпали с распакованным комплектом. До правок выполнен полный
-Roslyn-прогон базы: 11 сборок, 9 групп Core, 53 Formats, 40 Licensing, процессная проверка
-лицензирования и лицензированное синтетическое демо. Исходники Core/Formats в 0.15.0 не менялись.
-
-## Новая реально выполненная проверка
-
-Среда: PowerShell 7.7.0-preview.4, .NET 11.0.0-preview.6.26359.118; Roslyn/C#13, Release.
-Это альтернативный managed-host, **не** .NET 9 SDK/MSBuild и не нативный Windows EXE.
-Логи содержат предупреждения CS1701 только инструментальной сборки Documentation из-за
-согласования Roslyn/reference assemblies. Они не скрыты и не выдаются за отсутствие всех предупреждений.
+## Выполнено
 
 | Проверка | Результат |
 |---|---|
-| Компиляция | 11 сборок, ошибок нет |
-| Core SelfTests | 9 групп прошли |
-| Formats SelfTests | 53 группы прошли |
-| Licensing SelfTests | 61 группа прошла (40 прежних + 21 новая) |
-| XML-документация Roslyn | 1732 именованных объявления, 0 ошибок |
-| Сервер + admin + клиент отдельными процессами | 24 шага прошли |
-| Синтетическое демо под действующей лицензией | 11 шагов прошли |
-| Сравнение одинаковым harness 0.14/0.15 | Шесть старых дефектов воспроизведены; новая версия исправляет все шесть |
-| База 2000 лицензий/1000 установок | 7 замеров на версию, одинаковый семантический hash |
+| Roslyn compilation | 11 сборок успешно скомпилированы |
+| C# core | 9 групп passed |
+| C# форматы | 53 группы passed |
+| C# лицензирование | 97 групп passed (36 новых относительно 0.15.0) |
+| Roslyn XML documentation | 1887 именованных объявлений, 0 ошибок |
+| Python release tests | 29 passed |
+| Node React model tests | 10 passed |
+| React static build | Выполнен; проверены vendor SHA-256 и детерминированный BUILD-MANIFEST |
+| Старый online owner/server/client lifecycle | 24 шага passed |
+| Синтетическое игровое демо под действующей лицензией | 11 шагов passed |
+| React + actual loopback backend + CLI reserve lifecycle | 29 шагов passed; diagnostic browser bridge, не native networking |
+| Общий release validator | 33 passed, 0 failed, 12 not_run |
 
-Число групп не равно числу assertions. Новые тесты включают 1024 детерминированных изменения
-часов, 1000 дробных отсчётов и 64 параллельных чтения, но это не тест неограниченной нагрузки.
-Фиксированные ожидаемые результаты проверяются кодом, а не ручным редактированием флагов pass.
+Реальная managed-среда: PowerShell 7.7 preview, .NET 11.0.0-preview.6.26359.118, Roslyn.
+Target solution всё ещё net9.0. В documentation auditor остаются предупреждения CS1701 о согласовании
+версий SDK-библиотек и экспериментального runtime; они сохранены в полных журналах. Компилированные
+диагностические DLL, SDK, PowerShell и тестовые issuer/пароли в поставку не входят.
 
-## Проверки отказов и восстановления
+## Новые проверки
 
-Монотонное время после скачка wall clock; сохранение долей секунды; истечение до перезапуска;
-отказ при откате UTC; отсутствующий и испорченный clock; startup lock cleanup; миграция schema1;
-неизменность сроков/устройств; отсутствие повторной записи clock внутри одной секунды;
-неизменность licenses.json на heartbeat; изоляция Read/Change и вложенных Devices;
-исключение callback; принудительная ошибка записи DB и clock; невалидный снимок;
-отсутствующие/null JSON поля; сохранение optional defaults; реальные HTTP ошибки
-408/429/500/502/503/504 и неверный 200; соблюдение прежнего deadline при сетевом отказе.
+LSPR1 signature/domain separation, product/license/device/host/nonce scope, max168h, cap по основной
+лицензии, hard exclusive expiry, epoch retirement после disable/re-enable, отдельный revoke,
+идемпотентность, одноразовый challenge, persistence, clock rollback, monotonic time, fractional restart,
+sticky denial и повреждение local cache. Watchdog переводит короткий online lease на ранее подписанный
+резерв, не ожидая завершения сетевого таймаута; неподписанный интервал не создаётся.
 
-## Проверочные скрипты и итог
+Web: TOTP RFC vectors, replay, recovery consumption across restart, password обязателен даже с recovery,
+CSRF/session logout, idle15min, absolute8h, fresh5min, rate limit, concurrent recovery (один победитель),
+origin validation, запрет повторного init, отказ bootstrap output без создания недоступной учётной записи.
 
-Общий протокол: **31 группа прошла, 0 ошибок, 11 не выполнены**. Python-проверки
-сборки/упаковки: 22 общих + 7 licensing build = 29 тестов. Синтаксис PowerShell,
-Bash, Python, XML-summary и аудит источников выполнены. Детали и команды в журналах.
+Интерактивный React-тест действительно выдаёт ключ в форме, активирует отдельный CLI, выдаёт grant,
+останавливает сервер, проверяет offline command, локальный disable, глобальный disable,
+restart/session invalidation, старое поколение, новый grant, индивидуальный revoke и сохранение отказа
+после отключения сети. Интерфейс просмотрен при 1366×768 и 390×844; JS page errors не обнаружены.
 
-## Логи и воспроизведение
+## Чего НЕ доказывает browser bridge
 
-В полном комплекте `reports/managed-fallback/` содержит команды, exit codes, SHA-256 входных
-файлов, сборок и журналов. `reports/licensing-process/` — сетевой сценарий;
-`reports/license-comparison/` — старый/новый probe и измерения.
-`reports/validation-summary.json` — полный итог проверок (включая skipped).
-Подробности оптимизации: LICENSE_PERFORMANCE_RU.md; миграция: LICENSE_MIGRATION_RU.md.
+Chromium в этой среде запрещает навигацию URL системной политикой URLBlocklist. Эта политика не менялась.
+При диагностике фактический React рендерится в разрешённом about:blank; fetch передаётся через
+ограниченный Python HTTP transport в настоящий локальный LicenseWebServer, а cookie ведёт тестовый
+cookie jar. Серверные статусы и Set-Cookie/CSP заголовки действительно проверяются, но это **не**
+проверка браузерного соблюдения Origin/cookie/CSP, не HTTPS и не реальная запись native downloads.
+Для production эти проверки вынесены в native Playwright CI без --browser-bridge.
+Screenshot-артефакты показывают реально отрендеренный интерфейс, но не развёрнутый публичный сайт.
 
-```powershell
-python -m pip install -r validation/requirements.txt
-python scripts/verify_roslyn.py --pwsh ПУТЬ_К_ДОВЕРЕННОМУ_PWSH
-python scripts/release_validate.py
-```
+## Не выполнено
 
-Отчёт итогового проверочного сценария с пропущенными обязательными платформенными этапами
-возвращает PARTIAL, не PASS. Для нормальной сборки используйте .NET 9 SDK и build.cmd/
-build_license_owner.py. Диагностический режим не является способом обойти gate поставки клиенту.
+.NET9 SDK/MSBuild/publish, нативные Windows CNG/ACL/EXE, внешние DNS/TLS/Nginx/VPS, remote GitHub Actions,
+аппаратная аттестация/защита от полного VM snapshot rollback, игровая приёмка PPSSPP/PSP.
+Оригинальный customer archive, sc.cpk, lt.bin и ISO не предоставлены в текущем файловом пространстве.
+Сохранённые старые хэши не выдаются за новый raw-byte прогон.
 
-## Что не проверено
+## Воспроизводимость
 
-Штатные restore/build/publish под .NET 9 SDK, исполняемые Windows-релизы и CNG/ACL,
-установка на production VPS с реальным HTTPS/сертификатом, удалённые GitHub Actions,
-реальные игры в PPSSPP/PSP и мощность production authority. Текущий original customer archive,
-sc.cpk, lt.bin и ISO отсутствуют. Исторические customer hashes не выдаются за новый raw-byte прогон.
-Время/IO fault injection не заменяют внезапное отключение диска/питания и полную проверку crash recovery.
-
-Исходный архив владельца не содержит SDK/runtime, EXE/DLL, ключи издателя, файлы шрифтов и игр.
-Все временные издатели/базы процесса тестирования создаются локально и не передаются.
+Node: `node --test web/license-admin/tests/model.test.mjs`, затем `node web/license-admin/build.mjs`.
+Native: `dotnet build LuckyStarPspToolkit.sln -c Release`, три self-test проекта, затем
+`python scripts/web_reserve_integration.py --output artifacts/browser-check` с Playwright Chromium.
+В диагностической среде — scripts/verify_roslyn.py с явно указанным доверенным pwsh.
+Успешные отчёты привязаны к SHA-256 текущих исходников и журналов; изменения делают evidence устаревшим.
+Проверку комплекта после распаковки см. reports/CLEAN_ARCHIVE_VERIFY.json и INTERNAL_CHECKSUMS в корне.

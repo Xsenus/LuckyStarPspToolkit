@@ -122,7 +122,7 @@ internal static class LicensingHardeningTests
         Assert(updated.LicenseId == issue.Id && updated.EntitlementExpires == granted.EntitlementExpires, "Migration changed entitlement");
         Assert(f.Authority.Get(issue.Id).Devices.Length == 1, "Migration changed installations");
         f.Authority.Dispose(); using var store = new LicenseStore(f.Directory, config);
-        Assert(store.Read(db => db.Schema) == 2, "Migration marker was not committed");
+        Assert(store.Read(db => db.Schema) == 3, "Migration marker was not committed");
     }
 
     /// <summary>Concurrent check/get operations cannot persist older timestamps after newer observations or corrupt the checkpoint.</summary>

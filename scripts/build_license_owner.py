@@ -28,6 +28,12 @@ def publish_owner(rids: list[str], dotnet: str) -> Path:
     runner = CommandRunner(ROOT, base / "build-logs" / ("owner-" + run))
     report = {"version": version, "ownerOnly": True, "containsCredentials": False, "steps": runner.steps, "status": "running"}
     try:
+        node = shutil.which("node")
+        if node is None:
+            raise BuildError("Node.js 22+ is required to build the owner React console")
+        frontend = ROOT / "web/license-admin"
+        runner.run("react-tests", [node, "--test", str(frontend / "tests/model.test.mjs")])
+        runner.run("react-build", [node, str(frontend / "build.mjs")])
         temporary.mkdir(parents=True)
         for rid in rids:
             directory = temporary / rid
@@ -45,9 +51,10 @@ def publish_owner(rids: list[str], dotnet: str) -> Path:
                     raise BuildError("Owner executable was not published")
                 if rid == native_rid():
                     runner.run("owner-help-" + rid + "-" + subdir, [str(executable), "--help"])
+            shutil.copytree(ROOT / "web/license-admin/dist", directory / "web")
             (directory / "OWNER_ONLY.txt").write_text("OWNER ONLY. Never send this package, issuer state or its passphrase to customers.\n", encoding="utf-8")
             (directory / "docs").mkdir(exist_ok=True)
-            for doc in (ROOT / "docs").glob("LICENSE*.md"):
+            for doc in [*(ROOT / "docs").glob("LICENSE*.md"), *(ROOT / "docs").glob("ADMIN*.md"), *(ROOT / "docs").glob("RESERVE*.md")]:
                 shutil.copy2(doc, directory / "docs" / doc.name)
             shutil.copytree(ROOT / "deploy/licensing", directory / "deploy")
             archive = temporary / f"LuckyStarPspToolkit-OWNER-{version}-{rid}.zip"

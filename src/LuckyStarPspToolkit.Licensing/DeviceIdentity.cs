@@ -97,6 +97,28 @@ public sealed class DeviceIdentity : IDisposable
     public string Prove(LicenseRequest request) => LicenseCrypto.Encode(key.SignData(LicenseCrypto.Transcript(request),
         HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation));
 
+    /// <summary>Signs a bounded local licensing checkpoint in a domain distinct from network proofs.</summary>
+    /// <param name="bytes">Local state bytes, at most ten KiB.</param>
+    /// <returns>Canonical P-256 signature.</returns>
+    public string SignLocalState(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length > 10000) throw new LicenseException("RESERVE_CACHE", "Local checkpoint exceeds its size limit.");
+        byte[] payload = Encoding.UTF8.GetBytes("LSP-LOCAL-RESERVE-1\n").Concat(bytes.ToArray()).ToArray();
+        lock (key) return LicenseCrypto.Encode(key.SignData(payload, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation));
+    }
+
+    /// <summary>Verifies a local reserve checkpoint using the installation public key.</summary>
+    /// <param name="bytes">Stored state bytes.</param>
+    /// <param name="signature">Bounded base64url signature.</param>
+    /// <returns>Whether the checkpoint belongs to the current installation.</returns>
+    public bool VerifyLocalState(ReadOnlySpan<byte> bytes, string signature)
+    {
+        if (bytes.Length > 10000) return false;
+        byte[] payload = Encoding.UTF8.GetBytes("LSP-LOCAL-RESERVE-1\n").Concat(bytes.ToArray()).ToArray();
+        using ECDsa verifier = LicenseCrypto.ImportPublic(PublicKey);
+        return verifier.VerifyData(payload, LicenseCrypto.Decode(signature, 64, 64), HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
+    }
+
     /// <summary>Creates a user-scoped software-KSP key with no private export permission.</summary>
     /// <param name="name">Unique persistent CNG key name.</param>
     /// <returns>Disposable signer owning its CNG handle.</returns>

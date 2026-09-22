@@ -30,6 +30,16 @@ internal static class OwnerProgram
                 Console.WriteLine($"Authority created: {trust.Issuer}. Keep authority.json and owner-connection.json private. Embed only client-trust.json.");
                 return 0;
             }
+            if (command == "web-init")
+            {
+                RequireOptions(options, "--data", "--username", "--password-file", "--origin", "--out", "--development-loopback");
+                string output = PrivateFiles.SafePath(Required(options, "--out"));
+                if (File.Exists(output) || Directory.Exists(output)) throw new LicenseException("WEB_SETUP_EXISTS", "Enrollment output already exists.");
+                _ = WebAdminAuthentication.Initialize(Required(options, "--data"), Required(options, "--username"),
+                    ReadPassword(options), Required(options, "--origin"), options.ContainsKey("--development-loopback"), output);
+                Console.WriteLine("Web owner initialized. Import the private enrollment file into your authenticator/password manager. It is NOT for customers.");
+                return 0;
+            }
             string connection = Required(options, "--connection");
             if (command is "list" or "audit")
             {
@@ -109,7 +119,7 @@ internal static class OwnerProgram
     private static string ReadPassword(Dictionary<string, string> options)
     {
         if (options.TryGetValue("--password-file", out string? file)) return Encoding.UTF8.GetString(PrivateFiles.Read(file, 4096)).TrimEnd('\r', '\n');
-        Console.Error.Write("New signing-key passphrase (16+ characters): ");
+        Console.Error.Write("Private passphrase/password (16+ characters): ");
         if (Console.IsInputRedirected) return Console.ReadLine() ?? "";
         var text = new StringBuilder();
         while (true)
@@ -210,5 +220,5 @@ internal static class OwnerProgram
     }
 
     /// <summary>Shows the owner-only lifecycle and retry instructions without sample working credentials.</summary>
-    private static void Help() => Console.WriteLine("OWNER ONLY — never distribute this program, authority data or owner connection to a customer.\n  init --data PRIVATE_DIR --url https://licenses.example/ [--password-file PRIVATE_FILE]\n  issue --connection OWNER_JSON --hours 6 --starts activation --devices 1 --label customer --out key.txt\n  issue --connection OWNER_JSON --days 7 --out key.txt\n  issue --connection OWNER_JSON --years 1 --out key.txt\n  issue --connection OWNER_JSON --permanent --out key.txt\n  retry-issue --connection OWNER_JSON --request key.txt.issue-request.json --out key.txt\n  list --connection OWNER_JSON [--out list.json]\n  suspend|resume|revoke|permanent --connection OWNER_JSON --id LICENSE_UUID\n  extend --connection OWNER_JSON --id LICENSE_UUID --days 30\n  reset-device --connection OWNER_JSON --id LICENSE_UUID --device DEVICE_SHA256\n  retry-change --connection OWNER_JSON --request SAVED_CHANGE_JSON\n  audit --connection OWNER_JSON --out audit.json\nTime: --starts issue|activation (default activation); optional --activate-before 2027-01-01T00:00:00Z.\nInitialization-only --development-loopback permits an isolated loopback test profile, not a customer release.\nRaw keys and passwords are never accepted as ordinary option values or printed by issue.");
+    private static void Help() => Console.WriteLine("OWNER ONLY — never distribute this program, authority data or owner connection to a customer.\n  init --data PRIVATE_DIR --url https://licenses.example/ [--password-file PRIVATE_FILE]\n  web-init --data PRIVATE_DIR --username owner --origin https://admin.example --out PRIVATE_ENROLLMENT_JSON [--password-file PRIVATE_FILE]\n  issue --connection OWNER_JSON --hours 6 --starts activation --devices 1 --label customer --out key.txt\n  issue --connection OWNER_JSON --days 7 --out key.txt\n  issue --connection OWNER_JSON --years 1 --out key.txt\n  issue --connection OWNER_JSON --permanent --out key.txt\n  retry-issue --connection OWNER_JSON --request key.txt.issue-request.json --out key.txt\n  list --connection OWNER_JSON [--out list.json]\n  suspend|resume|revoke|permanent --connection OWNER_JSON --id LICENSE_UUID\n  extend --connection OWNER_JSON --id LICENSE_UUID --days 30\n  reset-device --connection OWNER_JSON --id LICENSE_UUID --device DEVICE_SHA256\n  retry-change --connection OWNER_JSON --request SAVED_CHANGE_JSON\n  audit --connection OWNER_JSON --out audit.json\nTime: --starts issue|activation (default activation); optional --activate-before 2027-01-01T00:00:00Z.\nInitialization-only --development-loopback permits an isolated loopback test profile, not a customer release.\nRaw keys and passwords are never accepted as ordinary option values or printed by issue.");
 }

@@ -48,6 +48,25 @@ public sealed class LicenseTransport : IDisposable
         return (lease, remaining);
     }
 
+    /// <summary>Refreshes an explicitly owner-authorized reserve grant with a fresh installation proof.</summary>
+    /// <param name="licenseId">Activated parent license.</param>
+    /// <param name="grantId">Owner-issued permission UUID.</param>
+    /// <param name="cancellation">Caller cancellation.</param>
+    /// <returns>Verified token, its request nonce and full exchange duration for conservative caching.</returns>
+    public async Task<(string Token, string Nonce, TimeSpan Elapsed)> RefreshReserveAsync(string licenseId, string grantId,
+        CancellationToken cancellation = default)
+    {
+        long started = Stopwatch.GetTimestamp();
+        var challenge = await PostAsync<ChallengeRequest, ChallengeResponse>("v1/challenge",
+            new(trust.ProductId, "check", identity.PublicKey, identity.HostBinding), cancellation).ConfigureAwait(false);
+        var request = new LicenseRequest(trust.ProductId, "check", identity.PublicKey, identity.HostBinding,
+            challenge.Challenge, LicenseCrypto.Nonce(), licenseId, "", "");
+        request = request with { Proof = identity.Prove(request) };
+        var response = await PostAsync<ReserveRefreshRequest, LeaseResponse>("v1/reserve", new(grantId, request), cancellation).ConfigureAwait(false);
+        _ = ReserveCrypto.Verify(response.Token, trust, identity, licenseId, grantId, request.ClientNonce);
+        return (response.Token, request.ClientNonce, Stopwatch.GetElapsedTime(started));
+    }
+
     /// <summary>Posts one strictly bounded JSON message and returns only success-schema data or a controlled refusal.</summary>
     /// <typeparam name="TRequest">Request schema.</typeparam>
     /// <typeparam name="TResponse">Success schema.</typeparam>

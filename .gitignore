@@ -67,3 +67,9 @@ patched/
 **/*.change.json
 *.pass
 *.key
+
+# Owner console: generated build and local work files
+web/license-admin/dist/
+web/license-admin/.dist-stage/
+web/license-admin/.dist-old/
+node_modules/

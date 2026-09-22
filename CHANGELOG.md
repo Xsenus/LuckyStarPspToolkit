@@ -1,3 +1,8 @@
+# 0.16.0
+
+React owner console, MFA и резерв до 7 дней. См. docs/RELEASE_NOTES_0.16.0_RU.md
+и docs/TEST_REPORT_RU.md. Нет вечного master bypass; disconnected revoke ограничен TTL.
+
 # Changelog
 
 ## 0.15.0 — 2026-09-22

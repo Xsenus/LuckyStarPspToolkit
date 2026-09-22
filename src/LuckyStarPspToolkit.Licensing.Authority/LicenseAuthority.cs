@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 namespace LuckyStarPspToolkit.Licensing.Authority;
 
 /// <summary>Server-side entitlement state machine; all time and device-limit decisions are made here, not by the customer UI.</summary>
-public sealed class LicenseAuthority : IDisposable
+public sealed partial class LicenseAuthority : IDisposable
 {
     /// <summary>Challenge cache entry held only in memory, invalidated by consumption or server restart.</summary>
     /// <param name="Binding">Operation, product and installation that requested the challenge.</param>
@@ -50,7 +50,7 @@ public sealed class LicenseAuthority : IDisposable
             openedStore = new LicenseStore(directory, config);
             long now = clock.Now();
             var metadata = openedStore.ReadCommitted(db => (db.Schema, db.LastWriteUtc));
-            openedCheckpoint = new AuthorityClockCheckpoint(directory, config, metadata.Schema == 2, metadata.LastWriteUtc, now);
+            openedCheckpoint = new AuthorityClockCheckpoint(directory, config, metadata.Schema >= 2, metadata.LastWriteUtc, now);
             openedStore.RequireClockCheckpoint(now);
             store = openedStore;
             checkpoint = openedCheckpoint;

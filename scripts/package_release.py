@@ -128,7 +128,7 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
         files = export_source(project)
         reports = root / 'reports'; reports.mkdir()
         for path in sorted((ROOT / 'artifacts/validation').rglob('*')):
-            if not path.is_file() or path.suffix.lower() not in {'.json', '.txt', '.log', '.md'}:
+            if not path.is_file() or path.suffix.lower() not in {'.json', '.txt', '.log', '.md', '.png'}:
                 continue
             relative = path.relative_to(ROOT / 'artifacts/validation')
             target = reports / relative; target.parent.mkdir(parents=True, exist_ok=True)
@@ -137,7 +137,7 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
         previous_version = git('show', f'{previous_tag}:VERSION').decode().strip()
         if not re.fullmatch(r'\d+\.\d+\.\d+', previous_version):
             raise ValueError('Invalid previous version')
-        (reports / f'CHANGES_FROM_{previous_version}.patch').write_bytes(git('diff', '--no-ext-diff', previous_tag, 'HEAD', '--', 'src', 'tests', 'scripts', 'tools', 'Directory.Build.props', 'NuGet.Config', '.github'))
+        (reports / f'CHANGES_FROM_{previous_version}.patch').write_bytes(git('diff', '--no-ext-diff', previous_tag, 'HEAD', '--', 'src', 'tests', 'scripts', 'tools', 'web', 'deploy', 'docs', 'Directory.Build.props', 'NuGet.Config', '.github'))
         history = root / 'git'; history.mkdir()
         bundle = history / f'LuckyStarPspToolkit-{version}.git.bundle'
         commits = history_bundle(ROOT, bundle, version, development)
@@ -156,8 +156,26 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
                     'historyCommits': commits,
                     'validationStatus': report['status'], 'compiledBinariesIncluded': False,
                     'fontFilesIncluded': False, 'customerFilesIncluded': False,
-                    'ownerOnly': True, 'licensePolicy': 'strict-online', 'signingCredentialsIncluded': False,
+                    'ownerOnly': True, 'licensePolicy': 'online-default; opt-in per-installation signed reserve <=168h', 'signingCredentialsIncluded': False,
+                    'reactStaticAssetsIncluded': True, 'nativeWindowsReleaseIncluded': False,
                     'sourceFiles': files, 'gitBundleSha256': digest(bundle)}
+        frontend = ROOT / 'web/license-admin/dist'
+        frontend_manifest = json.loads((frontend / 'BUILD-MANIFEST.json').read_text())
+        if frontend_manifest['version'] != version:
+            raise ValueError('Build the matching owner React frontend before packaging.')
+        owner_web = root / 'owner-web'; owner_web.mkdir()
+        allowed = {'assets/vendor.js', 'assets/app.js', 'assets/app.css', 'index.html',
+                   'THIRD_PARTY_LICENSES.txt', 'VENDOR-PROVENANCE.json'}
+        if {item['name'] for item in frontend_manifest['files']} != allowed:
+            raise ValueError('Unexpected frontend bundle layout.')
+        for item in frontend_manifest['files']:
+            source = frontend / safe_relative(item['name'])
+            if source.is_symlink() or digest(source) != item['sha256']:
+                raise ValueError('Frontend output changed after its build: ' + item['name'])
+            target = owner_web / item['name']; target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(source.read_bytes())
+        write_json(owner_web / 'BUILD-MANIFEST.json', frontend_manifest)
+        manifest['ownerFrontend'] = frontend_manifest
         write_json(root / 'MANIFEST.json', manifest)
         managed_path = ROOT / 'artifacts/validation/managed-fallback/managed-fallback-report.json'
         managed_line = 'Дополнительный прогон C# в альтернативной среде в этой поставке не зафиксирован.\n'
@@ -168,7 +186,9 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
         (root / 'START_HERE_RU.md').write_text(
             f'# Полный исходный комплект {version}\n\n'
             'КОМПЛЕКТ ВЛАДЕЛЬЦА: не отправлять исходники, Git bundle и инструменты выдачи ключей клиенту.\n'
-            'Начните с project/START_HERE_RU.md и project/docs/LICENSE_OWNER_RU.md.\n'
+            'Начните с project/docs/ADMIN_WEB_RU.md и project/docs/RESERVE_ACCESS_RU.md.\n'
+            'owner-web/ — уже собранные статические React assets для server --web-root; не отдельная авторизация без backend.\n'
+            'Node22+ нужен только для пересборки frontend. На VPS Node-процесс не требуется.\n'
             + managed_line +
             'Готовых EXE/DLL, чужого runtime/компилятора, игровых и шрифтовых файлов нет.\n'
             'Проверки: reports/validation-summary.json и reports/managed-fallback/.\n'

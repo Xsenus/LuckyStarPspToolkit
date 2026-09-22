@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "description": "Pinned official React CI oss-stable-semver build; not asserted byte-identical to npm release. Browser-only production CJS modules; no server components.",
+  "reactVersion": "19.3.0",
+  "schedulerVersion": "0.28.0",
+  "sourceRepository": "https://github.com/react/react",
+  "sourceCommit": "59aff3e18cb5b3a336c280bbfa57ec37999511b9",
+  "workflowRun": 35328185246,
+  "artifactId": 10539334300,
+  "artifactSha256": "4b60015945b4887dfb87d159e64738d47cdbb1253fa73887448933fbf97e9253",
+  "license": "MIT",
+  "files": [
+    {
+      "module": "react",
+      "path": "vendor/react/react.production.js",
+      "sha256": "6b28feb9dbe9781ab1e1b64dea7b29a7c70f03d2dc10eaa966363053d8a9b4e5"
+    },
+    {
+      "module": "react-dom",
+      "path": "vendor/react/react-dom.production.js",
+      "sha256": "fd016e2c887f97b82f466ca435ae259d08cf7d4e7fef37e087963336d4770c01"
+    },
+    {
+      "module": "react-dom/client",
+      "path": "vendor/react/react-dom-client.production.js",
+      "sha256": "d0af630761b73c161dfa0b65ded2b67d3b78c64bb671c4e75cacc59886caea56"
+    },
+    {
+      "module": "scheduler",
+      "path": "vendor/react/scheduler.production.js",
+      "sha256": "679adff761d31e9426604f80c0e99be44a3e6f4c6834b0218ecf0312a67c171f"
+    }
+  ]
+}

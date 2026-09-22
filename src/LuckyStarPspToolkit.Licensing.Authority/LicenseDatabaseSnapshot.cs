@@ -9,11 +9,25 @@ internal static class LicenseDatabaseSnapshot
     /// <exception cref="LicenseException">Invalid state or a configured capacity limit.</exception>
     public static void Validate(LicenseDatabase database, string issuer)
     {
-        if (database.Schema is not (1 or 2) || database.Issuer != issuer || database.Revision < 0 ||
+        if (database.Schema is not (1 or 2 or 3) || database.Issuer != issuer || database.Revision < 0 ||
             database.LastWriteUtc is < 0 or > 253402300799L || database.Licenses is null || database.Requests is null || database.Audit is null)
             throw new LicenseException("DATABASE_INVALID", "Invalid license database schema.");
         if (database.Licenses.Count > 10000 || database.Requests.Count > 100000 || database.Audit.Count > 100000)
             throw new LicenseException("DATABASE_LIMIT", "Authority capacity reached; archive and migrate before adding records.");
+        if (database.ReserveGrants is null || database.ReserveGrants.Count > 10000 || database.ReserveEpoch < 0 ||
+            (database.ReserveEnabled && database.ReserveEpoch == 0))
+            throw new LicenseException("DATABASE_INVALID", "Invalid reserve policy.");
+        foreach (var item in database.ReserveGrants)
+        {
+            ReserveGrant grant = item.Value;
+            if (grant is null || item.Key != grant.Id || !Guid.TryParseExact(grant.Id, "D", out _) ||
+                !database.Licenses.ContainsKey(grant.LicenseId) || grant.Epoch < 1 || grant.Epoch > database.ReserveEpoch ||
+                grant.WindowSeconds is < 3600 or > ReserveCrypto.MaximumSeconds || grant.CreatedAt < 0 ||
+                grant.CreatedAt > database.LastWriteUtc || grant.RevokedAt < grant.CreatedAt || grant.RevokedAt > database.LastWriteUtc ||
+                string.IsNullOrWhiteSpace(grant.Reason) || grant.Reason.Length > 200 || grant.Reason.Any(char.IsControl))
+                throw new LicenseException("DATABASE_INVALID", "Invalid reserve grant.");
+            LicenseCrypto.ValidateDigest(grant.DeviceId); LicenseCrypto.ValidateDigest(grant.Fingerprint);
+        }
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var pair in database.Licenses)
         {
@@ -62,8 +76,8 @@ internal static class LicenseDatabaseSnapshot
         foreach (var entry in database.Audit)
         {
             if (entry is null || entry.At < 0 || entry.At > database.LastWriteUtc ||
-                entry.LicenseId is null || !database.Licenses.ContainsKey(entry.LicenseId) || entry.Action is not
-                ("issue" or "activate" or "suspend" or "resume" or "revoke" or "extend" or "permanent" or "reset-device") || entry.DeviceId is null)
+                entry.LicenseId is null || !(database.Licenses.ContainsKey(entry.LicenseId) || (entry.LicenseId == "" && entry.Action is "reserve-enable" or "reserve-disable")) || entry.Action is not
+                ("issue" or "activate" or "suspend" or "resume" or "revoke" or "extend" or "permanent" or "reset-device" or "reserve-enable" or "reserve-disable" or "reserve-issue" or "reserve-revoke") || entry.DeviceId is null)
                 throw new LicenseException("DATABASE_INVALID", "Invalid audit record.");
         }
     }
@@ -80,7 +94,8 @@ internal static class LicenseDatabaseSnapshot
         {
             Licenses = licenses,
             Requests = new(database.Requests, StringComparer.Ordinal),
-            Audit = new(database.Audit)
+            Audit = new(database.Audit),
+            ReserveGrants = new(database.ReserveGrants, StringComparer.Ordinal)
         };
     }
 }

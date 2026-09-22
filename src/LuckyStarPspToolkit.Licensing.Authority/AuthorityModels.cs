@@ -73,7 +73,7 @@ public sealed record LicenseRecord(string Id, string KeyDigest, string IssueDige
 public sealed record LicenseAudit(long At, string Action, string LicenseId, string DeviceId);
 
 /// <summary>Authenticated single-writer snapshot. Periodic lease checks do not rewrite entitlements; a separate small server-time checkpoint protects restarts.</summary>
-/// <param name="Schema">One for legacy stores; two makes the authenticated server-clock checkpoint mandatory.</param>
+/// <param name="Schema">One for legacy stores; two requires the clock checkpoint; three adds opt-in reserve policy and grants.</param>
 /// <param name="Issuer">Authority owning the database.</param>
 /// <param name="Revision">Monotonically increasing committed write number.</param>
 /// <param name="LastWriteUtc">Last commit time, guarding accidental backward-clock startup.</param>
@@ -81,7 +81,15 @@ public sealed record LicenseAudit(long At, string Action, string LicenseId, stri
 /// <param name="Requests">Mutation UUID to request digest for exactly-once administrative retries.</param>
 /// <param name="Audit">Bounded audit history; mutation stops rather than silently dropping events when full.</param>
 public sealed record LicenseDatabase(int Schema, string Issuer, long Revision, long LastWriteUtc,
-    Dictionary<string, LicenseRecord> Licenses, Dictionary<string, string> Requests, List<LicenseAudit> Audit);
+    Dictionary<string, LicenseRecord> Licenses, Dictionary<string, string> Requests, List<LicenseAudit> Audit)
+{
+    /// <summary>Opt-in global reserve mode; false after migration or initialization.</summary>
+    public bool ReserveEnabled { get; set; }
+    /// <summary>Increasing reserve generation. A disabled/re-enabled generation never resurrects older grants.</summary>
+    public long ReserveEpoch { get; set; }
+    /// <summary>Bounded reserve allow-list; each immutable entry is tied to one license and installation.</summary>
+    public Dictionary<string, ReserveGrant> ReserveGrants { get; init; } = new(StringComparer.Ordinal);
+}
 
 /// <summary>On-disk envelope; HMAC is verified before the database payload is parsed.</summary>
 /// <param name="Schema">Envelope version.</param>

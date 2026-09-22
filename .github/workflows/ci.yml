@@ -24,7 +24,7 @@ jobs:
           - os: windows-latest
             rid: win-x64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,6 +32,13 @@ jobs:
           python-version: '3.13'
       - name: Install development validators
         run: python -m pip install --disable-pip-version-check -r validation/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate and build pinned React owner console
+        run: |
+          node --test web/license-admin/tests/model.test.mjs
+          node web/license-admin/build.mjs
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
@@ -54,4 +61,40 @@ jobs:
           path: |
             artifacts/build-logs
             artifacts/demo
+          if-no-files-found: warn
+
+  browser-owner-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Install browser test tools
+        run: |
+          python -m pip install -r validation/requirements.txt -r web/license-admin/requirements-test.txt
+          python -m playwright install --with-deps chromium
+      - name: Build actual browser and backend
+        run: |
+          node --test web/license-admin/tests/model.test.mjs
+          node web/license-admin/build.mjs
+          dotnet build LuckyStarPspToolkit.sln -c Release --nologo
+      - name: Native browser transport, MFA and reserve lifecycle
+        run: python scripts/web_reserve_integration.py --output artifacts/browser-ci
+      - name: Upload redacted browser evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-browser-evidence
+          path: |
+            artifacts/browser-ci/*.log
+            artifacts/browser-ci/*.png
+            artifacts/browser-ci/web-reserve-integration-report.json
           if-no-files-found: warn

@@ -133,6 +133,7 @@ public sealed class LicenseHttpServer : IAsyncDisposable
                 response = new { status = "ok", schema = 1 };
             else if (admin && request.HttpMethod == "GET" && path == "/admin/licenses") response = authority.List();
             else if (admin && request.HttpMethod == "GET" && path == "/admin/audit") response = authority.Audit();
+            else if (admin && request.HttpMethod == "GET" && path == "/admin/reserve") response = authority.ReserveStatus();
             else if (request.HttpMethod == "POST")
             {
                 string contentType = (request.ContentType ?? "").Split(';')[0].Trim();
@@ -143,6 +144,10 @@ public sealed class LicenseHttpServer : IAsyncDisposable
                 {
                     (false, "/v1/challenge") => authority.ChallengeFor(LicenseJson.Read<ChallengeRequest>(body)),
                     (false, "/v1/authorize") => authority.Authorize(LicenseJson.Read<LicenseRequest>(body)),
+                    (false, "/v1/reserve") => authority.RefreshReserve(LicenseJson.Read<ReserveRefreshRequest>(body)),
+                    (true, "/admin/reserve/policy") => authority.SetReservePolicy(LicenseJson.Read<ReservePolicyRequest>(body)),
+                    (true, "/admin/reserve/issue") => authority.IssueReserve(LicenseJson.Read<ReserveIssueRequest>(body)),
+                    (true, "/admin/reserve/revoke") => authority.RevokeReserve(LicenseJson.Read<ReserveRevokeRequest>(body)),
                     (true, "/admin/issue") => authority.Issue(LicenseJson.Read<IssueLicenseRequest>(body)),
                     (true, "/admin/change") => authority.Change(LicenseJson.Read<ChangeLicenseRequest>(body)),
                     _ => throw new LicenseException("ENDPOINT_UNKNOWN", "Unknown endpoint on this listener.")

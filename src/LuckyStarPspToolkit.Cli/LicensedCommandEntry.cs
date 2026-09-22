@@ -51,6 +51,8 @@ internal static class LicensedCommandEntry
             if (command == "license" && args.Length == 2 && args[1] == "forget")
             {
                 if (File.Exists(statePath)) File.Delete(PrivateFiles.SafePath(statePath));
+                string reservePath = Path.Combine(directory, "reserve.json");
+                if (File.Exists(reservePath)) File.Delete(PrivateFiles.SafePath(reservePath));
                 Console.WriteLine("Local activation removed. Server slots are released only by the owner.");
                 return 0;
             }
@@ -64,21 +66,59 @@ internal static class LicensedCommandEntry
                 else throw new LicenseException("LICENSE_USAGE", "Use license activate or license activate --key-file path.");
                 LicenseCrypto.ValidateAccessKey(key);
                 var grant = transport.ExchangeAsync("activate", "", key).GetAwaiter().GetResult();
+                // A new online activation never inherits another entitlement's cached reserve token.
+                string oldReserve = Path.Combine(directory, "reserve.json");
+                if (File.Exists(oldReserve)) File.Delete(PrivateFiles.SafePath(oldReserve));
                 PrivateFiles.Write(statePath, LicenseJson.Write(new ActivationState(1, trust.Issuer, trust.ProductId, grant.Lease.LicenseId, identity.Id)));
                 PrintStatus(grant.Lease, identity.Id, trust.DevelopmentLoopback);
                 return 0;
             }
             if (command == "license" && args.Length == 2 && args[1] == "device")
             { Console.WriteLine(identity.Id); return 0; }
-            if (command == "license" && (args.Length != 2 || args[1] != "status"))
+            bool reserveEnable = command == "license" && args.Length == 4 && args[1] == "reserve-enable" && args[2] == "--id";
+            bool reserveDisable = command == "license" && args.Length == 2 && args[1] == "reserve-disable";
+            if (command == "license" && !reserveEnable && !reserveDisable && (args.Length != 2 || args[1] != "status"))
                 throw new LicenseException("LICENSE_USAGE", "Unknown license command. Run license help.");
             if (!File.Exists(statePath)) throw new LicenseException("LICENSE_REQUIRED", "Activate first: lsptool license activate");
             var state = LicenseJson.Read<ActivationState>(PrivateFiles.Read(statePath));
             if (state.Schema != 1 || state.Issuer != trust.Issuer || state.ProductId != trust.ProductId || state.DeviceId != identity.Id)
                 throw new LicenseException("ACTIVATION_INVALID", "The activation belongs to another vendor or installation.");
-            var initial = transport.ExchangeAsync("check", state.LicenseId, "").GetAwaiter().GetResult();
-            if (command == "license") { PrintStatus(initial.Lease, identity.Id, trust.DevelopmentLoopback); return 0; }
-            using var session = new LicenseSession(transport, state.LicenseId, initial.Remaining, TerminateExpired);
+            var reserve = new ReserveCache(directory, trust, identity, state.LicenseId);
+            if (reserveEnable)
+            {
+                try
+                {
+                    var permit = transport.RefreshReserveAsync(state.LicenseId, args[3]).GetAwaiter().GetResult();
+                    reserve.Accept(permit.Token, args[3], permit.Nonce, permit.Elapsed);
+                }
+                catch (LicenseException ex) when (!ReserveCache.IsTransient(ex.Code)) { reserve.Block(); throw; }
+                Console.WriteLine("Reserve permission enabled; exclusive UTC deadline: " + DateTimeOffset.FromUnixTimeSeconds(reserve.ValidUntil!.Value).ToString("O"));
+                return 0;
+            }
+            if (reserveDisable) { reserve.Block(); Console.WriteLine("Local reserve permission disabled. Normal online license is unchanged."); return 0; }
+            TimeSpan interval;
+            try
+            {
+                var initial = transport.ExchangeAsync("check", state.LicenseId, "").GetAwaiter().GetResult();
+                long receivedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+                reserve.RenewAsync(transport).GetAwaiter().GetResult();
+                interval = initial.Remaining - System.Diagnostics.Stopwatch.GetElapsedTime(receivedAt);
+                if (interval <= TimeSpan.Zero) throw new LicenseException("LEASE_EXPIRED", "Online grant expired during reserve renewal.");
+                if (command == "license") { PrintStatus(initial.Lease, identity.Id, trust.DevelopmentLoopback); return 0; }
+            }
+            catch (LicenseException ex) when (ReserveCache.IsTransient(ex.Code) && reserve.Enabled)
+            {
+                interval = reserve.Remaining();
+                Console.Error.WriteLine("RESERVE MODE: offline execution is limited by the signed deadline; revocation is checked when connectivity returns.");
+                if (command == "license")
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(LicenseJson.Write(new { state = "reserve-offline", grantId = reserve.GrantId,
+                        validUntil = reserve.ValidUntil, remainingSeconds = (long)interval.TotalSeconds })));
+                    return 0;
+                }
+            }
+            catch (LicenseException ex) when (!ReserveCache.IsTransient(ex.Code)) { reserve.Block(); throw; }
+            using var session = new LicenseSession(transport, state.LicenseId, interval, TerminateExpired, reserve.Enabled ? reserve : null);
             session.RequireValid();
             int code = CommandApplication.RunCore(args);
             session.RequireValid();
@@ -131,5 +171,5 @@ internal static class LicensedCommandEntry
     }
 
     /// <summary>Shows the unlicensed management surface without revealing private state.</summary>
-    private static void PrintLicenseHelp() => Console.WriteLine("Licensing (all game commands require a valid online license):\n  lsptool license activate                     Read the separately delivered key without echo.\n  lsptool license activate --key-file key.txt   Read key from a private file, not shell arguments.\n  lsptool license build-info                   Public embedded issuer metadata, no activation secrets.\n  lsptool license status                       Fresh authenticated online status.\n  lsptool license device                       Public installation ID for owner support.\n  lsptool license forget                       Remove local activation only; no slot reset.\nNo offline grace is enabled. Public trust is embedded into customer builds.");
+    private static void PrintLicenseHelp() => Console.WriteLine("Licensing (game commands require an online lease or an explicitly enabled signed reserve):\n  lsptool license activate                     Read the separately delivered key without echo.\n  lsptool license activate --key-file key.txt   Read key from a private file, not shell arguments.\n  lsptool license build-info                   Public embedded issuer metadata, no activation secrets.\n  lsptool license status                       Fresh authenticated online status.\n  lsptool license device                       Public installation ID for owner support.\n  lsptool license forget                       Remove local activation only; no slot reset.\nReserve access is opt-in, per installation and capped at seven days.\n  lsptool license reserve-enable --id UUID     Fetch an owner-approved reserve permission online.\n  lsptool license reserve-disable              Block the local fallback without affecting normal online access.\nPublic trust is embedded into customer builds.");
 }
