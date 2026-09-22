@@ -31,6 +31,9 @@ namespace LuckyStarPspToolkit.Formats.Common;
 /// <param name="MaximumGlyphEntryCharacters">Maximum UTF-16 units in one glyph label or ligature.</param>
 /// <param name="MaximumUtfCells">Maximum materialized row/column cells, including implicit-zero values.</param>
 /// <param name="MaximumUtfDecodedBytes">Aggregate budget for copied UTF binary payloads and decoded strings in one table.</param>
+/// <param name="MaximumScriptBytes">Maximum bytes in one scenario, checked before source/output copies.</param>
+/// <param name="MaximumScriptFieldGlyphs">Maximum glyph words in one speaker, message or choice field.</param>
+/// <param name="MaximumScriptGlyphs">Aggregate decoded glyph words in one scenario; counted before array allocation.</param>
 public sealed record FileLimits(
     long MaximumInputBytes = 4L * 1024 * 1024 * 1024,
     int MaximumUtfRows = 1_000_000,
@@ -59,7 +62,10 @@ public sealed record FileLimits(
     int MaximumGlyphMapCharacters = 1_000_000,
     int MaximumGlyphEntryCharacters = 128,
     long MaximumUtfCells = 2_000_000,
-    long MaximumUtfDecodedBytes = 128L * 1024 * 1024)
+    long MaximumUtfDecodedBytes = 128L * 1024 * 1024,
+    int MaximumScriptBytes = 64 * 1024 * 1024,
+    int MaximumScriptFieldGlyphs = 1_000_000,
+    long MaximumScriptGlyphs = 8_000_000)
 {
     /// <summary>The default conservative limits for parsing caller-supplied data.</summary>
     public static FileLimits Default { get; } = new();

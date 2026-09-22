@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 — 2026-09-22
+
+Bounded scenario parser and single-buffer builder; preserve byte-identical no-ops
+and jump targets inside unchanged records; reject checksum-as-text, metadata overlap,
+uint32 overflow, duplicate and unaligned offsets. Preflight aggregate/per-field
+glyph and output-size budgets; indexed O(log M) relocation; direct API delimiter
+rejection; 13 C# regression groups, differential old/new probes and synthetic
+scale benchmarks with byte-identical rebuilt outputs. Git lineage preserved.
+Alternative Roslyn execution is not native .NET 9/Windows or gameplay acceptance.
+
 ## 0.11.0
 
 Real Roslyn/C#13 compilation and alternate-host execution; compiler defects fixed;

@@ -1,4 +1,4 @@
-# Testing and acceptance — 0.11.0
+# Testing and acceptance — 0.12.0
 
 ## Distinct layers, distinct evidence
 
@@ -61,3 +61,25 @@ source fingerprints and subprocess exit codes. This is separate evidence, NOT a 
 The new regressions cover constant-memory CMAC, 81 independent tags, two-target cleanup
 failure, overlapping transaction paths, UTF amplification budgets and 512 malformed headers.
 See TEST_REPORT_RU.md for actual observations and unexecuted checks.
+
+## Scenario regressions added in 0.12.0
+
+`ScriptRegressionTests.cs` adds 13 named groups: lossless no-op with a text-internal
+jump, next-record and checksum boundaries, wide metadata arithmetic, duplicate
+record starts, input/field/aggregate/output budgets, direct API mutations, empty
+choices, reordered dialogue tables, zero-dialogue opaque scripts, NIM layout,
+binary-search mapping versus a linear reference, scale tests and header mutation tests.
+
+A constructed fixture has a VALID additive checksum whose first word is `0xFFFB`;
+it must not be consumed as a missing message terminator. The regression is reproduced
+against the old DLL as well, rather than merely assumed from source inspection.
+
+The new suite executes 4084 relocation queries against a linear oracle, checks
+8192 dialogues / 16385 targets / 4096 edits, and runs 1024 deterministic mixed header
+mutations. It accepts legal cases and requires byte-identical no-op results, while
+invalid cases must throw a documented ToolkitException rather than an indexing
+or arithmetic exception. Counts and raw output are recorded in TEST_REPORT_RU.md.
+
+`ScriptScaleFixture.cs` is shared by the two-version benchmark and `--probe`; no
+game binaries or prepared font files are distributed. Timing scope, JIT settings,
+managed-allocation caveats and recorded samples are in PERFORMANCE_RU.md.

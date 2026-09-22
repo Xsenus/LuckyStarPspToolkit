@@ -17,3 +17,16 @@
 | Повторный тег уже существует | Не передвигайте старый публичный тег. Исправить код, увеличить версию и выпустить новый тег; не затирать релиз вручную без понимания последствий. |
 
 Не открывайте пользовательские приватные данные публично в Issues. Для сообщения об ошибке достаточно версии, команды, кода завершения, обезличенного лога и хэшей входов; сами образы игр не нужны в публичной задаче.
+
+
+## Scenario errors added in 0.12.0
+
+`SCRIPT_GLYPH_EOF` means a field reaches the next record or checksum without its
+structural delimiter. A checksum word is not a legal substitute.
+`SCRIPT_TABLE_RANGE`, `SCRIPT_TABLE_OVERLAP`, `SCRIPT_DUPLICATE_TEXT_OFFSET` and
+`SCRIPT_OFFSET` indicate unsafe metadata or targets, not a missing font.
+`SCRIPT_INPUT_LIMIT`, `SCRIPT_OUTPUT_LIMIT`, `SCRIPT_FIELD_LIMIT` and
+`SCRIPT_GLYPH_LIMIT` indicate exhausted explicit budgets; check the file/profile
+before increasing limits. `SCRIPT_JUMP_INSIDE_TEXT` is still intentional when the
+target is strictly inside a genuinely changed record; unchanged records no longer
+trigger that error on a no-op rebuild.

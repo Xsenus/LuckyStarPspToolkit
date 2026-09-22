@@ -63,3 +63,14 @@ The rebuilder appends replacement payloads on sector boundaries, updates both en
 ## JSON contracts
 
 Workspace and ISO patch manifests use strict deserialization: unknown properties, duplicate logical identifiers, invalid paths, and mismatched source hashes are rejected. Formal schemas live in `schemas/` and examples in `examples/` and `profiles/`.
+
+
+## Scenario hardening in 0.12.0
+
+Metadata tables must be aligned, non-overlapping, and strictly before the jump table.
+Empty tables may use zero offsets. All nonzero targets must point to aligned
+whole words before the checksum. Distinct text starts are indexed before any field
+is allocated. Each field is bounded by the next record or checksum and by the
+per-field and aggregate glyph budgets. Only genuinely changed records participate
+in the relocation index; unchanged internal targets remain valid. See
+[SCRIPT_CODEC_RU.md](SCRIPT_CODEC_RU.md) for allocation bounds and boundary semantics.

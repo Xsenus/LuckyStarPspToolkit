@@ -4,58 +4,47 @@ using LuckyStarPspToolkit.Formats.Common;
 namespace LuckyStarPspToolkit.Formats.Scripts;
 
 /// <summary>
-/// Represents the toolkit's lucky star script model or service.
+/// Parses and rebuilds Lucky Star scenario files while preserving opaque command bytes.
+/// Text records are bounded by the next record, metadata stays before the jump table,
+/// and no text reader may consume the final 16-byte checksum.
 /// </summary>
-public sealed class LuckyStarScript
+public sealed partial class LuckyStarScript
 {
-    /// <summary>The fixed metadata base value used by this format or revision.</summary>
+    /// <summary>Absolute start of the four-word scenario metadata header.</summary>
     private const int MetadataBase = 0x80;
-    /// <summary>The fixed dialog start value used by this format or revision.</summary>
+    /// <summary>Word marking a dialogue record, followed by its dialogue ID.</summary>
     private const ushort DialogStart = 0xFFF0;
-    /// <summary>The fixed speaker end value used by this format or revision.</summary>
+    /// <summary>Word separating a speaker name from its message.</summary>
     private const ushort SpeakerEnd = 0xFFFF;
-    /// <summary>The fixed choice end value used by this format or revision.</summary>
+    /// <summary>Word terminating choice text; it is retained outside replacement intervals.</summary>
     private const ushort ChoiceEnd = 0xFFFF;
-    /// <summary>The message ends value used by this model or operation.</summary>
-    private static readonly HashSet<ushort> MessageEnds = [0xFFFB, 0xFFFD, 0xFFFF];
-
-    /// <summary>Stores the original state owned by this instance or type.</summary>
+    /// <summary>Private snapshot, never exposed as a writable caller buffer.</summary>
     private readonly byte[] _original;
-    /// <summary>Stores the dialog table absolute state owned by this instance or type.</summary>
+    /// <summary>Absolute start of the dialogue-offset table in the unchanged metadata prefix.</summary>
     private readonly int _dialogTableAbsolute;
-    /// <summary>Stores the choice table absolute state owned by this instance or type.</summary>
+    /// <summary>Absolute start of the 32-byte choice-group rows.</summary>
     private readonly int _choiceTableAbsolute;
-    /// <summary>Stores the content start state owned by this instance or type.</summary>
+    /// <summary>First command byte after the jump table.</summary>
     private readonly int _contentStart;
-    /// <summary>Stores the logical end state owned by this instance or type.</summary>
+    /// <summary>End of retained commands and text, including every referenced zero-valued word.</summary>
     private readonly int _logicalEnd;
-    /// <summary>Stores the jumps state owned by this instance or type.</summary>
+    /// <summary>Relative original jump targets, including zero-valued unused slots.</summary>
     private readonly uint[] _jumps;
 
-    /// <summary>
-    /// Initializes a new instance with validated constructor state.
-    /// </summary>
-    /// <param name="original">The original value.</param>
-    /// <param name="profile">The revision-specific format or patch profile.</param>
-    /// <param name="magic">The magic value.</param>
-    /// <param name="dialogTableAbsolute">The dialog table absolute value.</param>
-    /// <param name="choiceTableAbsolute">The choice table absolute value.</param>
-    /// <param name="contentStart">The content start value.</param>
-    /// <param name="logicalEnd">The logical end value.</param>
-    /// <param name="jumps">The jumps value.</param>
-    /// <param name="dialogs">The dialogs value.</param>
-    /// <param name="choiceGroups">The choice groups value.</param>
-    private LuckyStarScript(
-        byte[] original,
-        ScriptProfile profile,
-        ushort magic,
-        int dialogTableAbsolute,
-        int choiceTableAbsolute,
-        int contentStart,
-        int logicalEnd,
-        uint[] jumps,
-        IReadOnlyList<ScriptDialog> dialogs,
-        IReadOnlyList<ScriptChoiceGroup> choiceGroups)
+    /// <summary>Stores an already validated scenario and the offsets needed for reconstruction.</summary>
+    /// <param name="original">Owned snapshot of the complete input, including checksum.</param>
+    /// <param name="profile">Validated game layout.</param>
+    /// <param name="magic">Preserved initial word; no unsupported magic value is inferred.</param>
+    /// <param name="dialogTableAbsolute">Absolute dialogue-offset table position.</param>
+    /// <param name="choiceTableAbsolute">Absolute choice-group table position.</param>
+    /// <param name="contentStart">First byte after the jump table.</param>
+    /// <param name="logicalEnd">Last retained byte, exclusive.</param>
+    /// <param name="jumps">Validated relative targets.</param>
+    /// <param name="dialogs">Dialogue records in table order, not physical order.</param>
+    /// <param name="choiceGroups">Choice groups in table order.</param>
+    private LuckyStarScript(byte[] original, ScriptProfile profile, ushort magic,
+        int dialogTableAbsolute, int choiceTableAbsolute, int contentStart, int logicalEnd,
+        uint[] jumps, IReadOnlyList<ScriptDialog> dialogs, IReadOnlyList<ScriptChoiceGroup> choiceGroups)
     {
         _original = original;
         Profile = profile;
@@ -69,617 +58,296 @@ public sealed class LuckyStarScript
         ChoiceGroups = choiceGroups;
     }
 
-    /// <summary>The profile value used by this model or operation.</summary>
+    /// <summary>Game-specific jump-table position and output alignment.</summary>
     public ScriptProfile Profile { get; }
-    /// <summary>The magic value used by this model or operation.</summary>
+    /// <summary>Uninterpreted original first word, retained during rebuilding.</summary>
     public ushort Magic { get; }
-    /// <summary>The dialogs value used by this model or operation.</summary>
+    /// <summary>Decoded dialogues in original table order; callers must not mutate these records.</summary>
     public IReadOnlyList<ScriptDialog> Dialogs { get; }
-    /// <summary>The choice groups value used by this model or operation.</summary>
+    /// <summary>Decoded groups and choices in original table order.</summary>
     public IReadOnlyList<ScriptChoiceGroup> ChoiceGroups { get; }
-    /// <summary>The jumps value used by this model or operation.</summary>
+    /// <summary>Original relative targets; zero means an unused jump slot.</summary>
     public IReadOnlyList<uint> Jumps => _jumps;
-    /// <summary>The checksum valid value used by this model or operation.</summary>
+    /// <summary>Whether the private input snapshot has its expected additive checksum.</summary>
     public bool ChecksumValid => RgoChecksum.Verify(_original);
-    /// <summary>The sha256 value used by this model or operation.</summary>
+    /// <summary>SHA-256 identifying the exact input bytes rather than the decoded text alone.</summary>
     public string Sha256 => BinaryUtilities.Sha256Hex(_original);
 
     /// <summary>
-    /// Parses validated input into the current binary-format model.
+    /// Validates metadata and all record starts before allocating text arrays, then decodes
+    /// each field within its physical record boundary and a shared glyph budget.
     /// </summary>
-    /// <param name="data">The binary data to process.</param>
-    /// <param name="profile">The revision-specific format or patch profile.</param>
-    /// <param name="limits">Optional conservative safety limits; defaults are used when omitted.</param>
-    /// <param name="requireChecksum">The require checksum value.</param>
-    /// <returns>The validated operation result.</returns>
-    /// <remarks>Malformed input or violated preconditions are rejected before a persistent output is committed.</remarks>
-    public static LuckyStarScript Parse(ReadOnlySpan<byte> data, ScriptProfile profile, FileLimits? limits = null, bool requireChecksum = true)
+    /// <param name="data">Complete scenario bytes, including its 16-byte checksum.</param>
+    /// <param name="profile">Layout of the target game; not detected by guessing.</param>
+    /// <param name="limits">Bounds for file size, record counts and decoded glyphs.</param>
+    /// <param name="requireChecksum">Reject an invalid checksum when true; false is for explicit inspection only.</param>
+    /// <returns>A validated scenario owning a separate copy of the input.</returns>
+    /// <exception cref="ToolkitException">Metadata, offsets, delimiters or resource limits are invalid.</exception>
+    public static LuckyStarScript Parse(ReadOnlySpan<byte> data, ScriptProfile profile,
+        FileLimits? limits = null, bool requireChecksum = true)
     {
         ArgumentNullException.ThrowIfNull(profile);
         limits ??= FileLimits.Default;
-        if (data.Length < profile.JumpTableOffset + 4 + 16 || (data.Length & 0x0F) != 0)
-        {
-            throw new ToolkitException("SCRIPT_SIZE", $"Script length {data.Length} is invalid for jump table 0x{profile.JumpTableOffset:X}.");
-        }
+        ValidateConfiguration(profile, limits);
+        if (data.Length > limits.MaximumScriptBytes || data.Length > limits.MaximumInputBytes)
+            throw new ToolkitException("SCRIPT_INPUT_LIMIT", $"Scenario length {data.Length} exceeds the configured input budget.");
+        if ((data.Length & 15) != 0 || (long)data.Length < (long)profile.JumpTableOffset + 4 + 2 + 16)
+            throw new ToolkitException("SCRIPT_SIZE", $"Scenario length {data.Length} is invalid for jump table 0x{profile.JumpTableOffset:X}.");
         if (requireChecksum && !RgoChecksum.Verify(data))
-        {
             throw new ToolkitException("SCRIPT_CHECKSUM", "Script checksum is invalid.");
-        }
 
-        byte[] original = data.ToArray();
-        ushort magic = BinaryPrimitives.ReadUInt16LittleEndian(data);
-        uint dialogTableRelative = ReadUInt32(data, MetadataBase, "dialog table offset");
-        uint dialogCount32 = ReadUInt32(data, MetadataBase + 4, "dialog count");
-        uint choiceTableRelative = ReadUInt32(data, MetadataBase + 8, "choice table offset");
-        uint choiceCount32 = ReadUInt32(data, MetadataBase + 12, "choice group count");
-        if (dialogCount32 > limits.MaximumScriptDialogs)
-        {
-            throw new ToolkitException("SCRIPT_DIALOG_LIMIT", $"Dialog count {dialogCount32} exceeds limit {limits.MaximumScriptDialogs}.");
-        }
-        if (choiceCount32 > limits.MaximumScriptChoiceGroups)
-        {
-            throw new ToolkitException("SCRIPT_CHOICE_LIMIT", $"Choice group count {choiceCount32} exceeds limit {limits.MaximumScriptChoiceGroups}.");
-        }
-        int dialogCount = checked((int)dialogCount32);
-        int choiceCount = checked((int)choiceCount32);
-        int dialogTableAbsolute = checked(MetadataBase + (int)dialogTableRelative);
-        int choiceTableAbsolute = checked(MetadataBase + (int)choiceTableRelative);
-        EnsureRange(data, dialogTableAbsolute, checked(dialogCount * 4), "dialog offset table");
-        EnsureRange(data, choiceTableAbsolute, checked(choiceCount * 32), "choice group table");
-        if (dialogTableAbsolute < MetadataBase + 16 || choiceTableAbsolute < MetadataBase + 16)
-        {
-            throw new ToolkitException("SCRIPT_TABLE_OFFSET", "Script metadata tables overlap the header.");
-        }
+        int checksumStart = data.Length - 16;
+        int dialogCount = ReadCount(data, MetadataBase + 4, limits.MaximumScriptDialogs, "SCRIPT_DIALOG_LIMIT");
+        int groupCount = ReadCount(data, MetadataBase + 12, limits.MaximumScriptChoiceGroups, "SCRIPT_CHOICE_LIMIT");
+        int dialogBytes = Guard.CheckedInt((long)dialogCount * 4, "SCRIPT_TABLE_RANGE", "dialogue table length");
+        int choiceBytes = Guard.CheckedInt((long)groupCount * 32, "SCRIPT_TABLE_RANGE", "choice table length");
+        int dialogTable = ReadTableOffset(data, MetadataBase, dialogBytes, profile.JumpTableOffset, "dialogue");
+        int choiceTable = ReadTableOffset(data, MetadataBase + 8, choiceBytes, profile.JumpTableOffset, "choice");
+        if (dialogBytes != 0 && choiceBytes != 0
+            && dialogTable < (long)choiceTable + choiceBytes && choiceTable < (long)dialogTable + dialogBytes)
+            throw new ToolkitException("SCRIPT_TABLE_OVERLAP", "Dialogue and choice tables overlap.");
 
         uint firstJump = ReadUInt32(data, profile.JumpTableOffset, "first jump");
         if (firstJump < 4 || (firstJump & 3) != 0)
+            throw new ToolkitException("SCRIPT_JUMP_HEADER", "The first jump must encode the jump-table byte length.");
+        if (firstJump / 4 > limits.MaximumScriptJumps)
+            throw new ToolkitException("SCRIPT_JUMP_LIMIT", "The jump table exceeds its configured entry budget.");
+        long contentPosition = (long)profile.JumpTableOffset + firstJump;
+        if (contentPosition > checksumStart - 2)
+            throw new ToolkitException("SCRIPT_JUMP_RANGE", "Jump-table bytes overlap the checksum or leave no target word.");
+        int contentStart = (int)contentPosition;
+        uint[] jumps = new uint[(int)(firstJump / 4)];
+        int minimumLogicalEnd = contentStart;
+        for (int i = 0; i < jumps.Length; i++)
         {
-            throw new ToolkitException("SCRIPT_JUMP_HEADER", $"First jump 0x{firstJump:X} is not a valid jump table byte length.");
+            jumps[i] = ReadUInt32(data, profile.JumpTableOffset + i * 4, "jump target");
+            if (jumps[i] != 0)
+            {
+                int absolute = RelativeToAbsolute(jumps[i], profile.JumpTableOffset, contentStart, checksumStart, "jump target");
+                // A target pointing at a zero word still owns those two bytes: it is not padding.
+                minimumLogicalEnd = Math.Max(minimumLogicalEnd, absolute + 2);
+            }
         }
-        int jumpCount = checked((int)(firstJump / 4));
-        if (jumpCount > limits.MaximumScriptJumps)
-        {
-            throw new ToolkitException("SCRIPT_JUMP_LIMIT", $"Jump count {jumpCount} exceeds limit {limits.MaximumScriptJumps}.");
-        }
-        int jumpBytes = checked(jumpCount * 4);
-        EnsureRange(data, profile.JumpTableOffset, jumpBytes, "jump table");
-        uint[] jumps = new uint[jumpCount];
-        for (int i = 0; i < jumpCount; i++)
-        {
-            jumps[i] = ReadUInt32(data, checked(profile.JumpTableOffset + i * 4), $"jump {i}");
-        }
-        if (jumps.Length == 0 || jumps[0] != firstJump)
-        {
-            throw new ToolkitException("SCRIPT_JUMP_ZERO", "Jump zero does not encode the jump table length.");
-        }
-        int contentStart = checked(profile.JumpTableOffset + jumpBytes);
-        int checksumStart = data.Length - 16;
 
-        List<ScriptDialog> dialogs = new(dialogCount);
-        List<Interval> intervals = [];
+        List<TextRecordStart> starts = new(dialogCount);
         for (int i = 0; i < dialogCount; i++)
         {
-            uint relative = ReadUInt32(data, checked(dialogTableAbsolute + i * 4), $"dialog {i} offset");
-            int start = RelativeToAbsolute(relative, profile.JumpTableOffset, checksumStart, $"dialog {i}");
-            int position = start;
-            ushort marker = ReadUInt16(data, ref position, $"dialog {i} marker");
-            if (marker != DialogStart)
-            {
-                throw new ToolkitException("SCRIPT_DIALOG_MARKER", $"Dialog {i} at 0x{start:X} starts with 0x{marker:X4}, expected 0x{DialogStart:X4}.");
-            }
-            ushort id = ReadUInt16(data, ref position, $"dialog {i} id");
-            ushort[] speaker = ReadGlyphsUntil(data, ref position, SpeakerEnd, checksumStart, $"dialog {i} speaker");
-            List<ushort> message = [];
-            ushort terminator;
-            while (true)
-            {
-                terminator = ReadUInt16(data, ref position, $"dialog {i} message");
-                if (MessageEnds.Contains(terminator))
-                {
-                    break;
-                }
-                message.Add(terminator);
-                if (message.Count > limits.MaximumInputBytes / 2)
-                {
-                    throw new ToolkitException("SCRIPT_MESSAGE_LIMIT", $"Dialog {i} message is unreasonably long.");
-                }
-            }
-            ScriptDialog dialog = new()
-            {
-                Index = i,
-                RelativeOffset = relative,
-                Id = id,
-                SpeakerGlyphs = speaker,
-                MessageGlyphs = message.ToArray(),
-                MessageTerminator = terminator,
-                AbsoluteStart = start,
-                AbsoluteEnd = position - 2
-            };
-            dialogs.Add(dialog);
-            intervals.Add(new Interval(start, position - 2, IntervalKind.Dialog, i, -1));
+            uint relative = ReadUInt32(data, dialogTable + i * 4, "dialogue offset");
+            starts.Add(new TextRecordStart(RelativeToAbsolute(relative, profile.JumpTableOffset,
+                contentStart, checksumStart, "dialogue"), true, i, -1));
         }
-
-        List<ScriptChoiceGroup> groups = new(choiceCount);
-        for (int groupIndex = 0; groupIndex < choiceCount; groupIndex++)
+        ScriptChoiceGroup[] groups = new ScriptChoiceGroup[groupCount];
+        for (int g = 0; g < groupCount; g++)
         {
-            int row = checked(choiceTableAbsolute + groupIndex * 32);
-            uint jumpId = ReadUInt32(data, row, $"choice group {groupIndex} jump id");
+            int row = choiceTable + g * 32;
+            uint jumpId = ReadUInt32(data, row, "choice-group jump ID");
             if (jumpId >= jumps.Length)
-            {
-                throw new ToolkitException("SCRIPT_CHOICE_JUMP", $"Choice group {groupIndex} references jump {jumpId}, only {jumps.Length} exist.");
-            }
-            ScriptChoiceGroup group = new() { Index = groupIndex, JumpId = jumpId };
+                throw new ToolkitException("SCRIPT_CHOICE_JUMP", $"Choice group {g} references a missing jump.");
+            groups[g] = new ScriptChoiceGroup { Index = g, JumpId = jumpId };
             bool gapSeen = false;
-            for (int choiceIndex = 0; choiceIndex < 7; choiceIndex++)
+            for (int c = 0; c < 7; c++)
             {
-                uint relative = ReadUInt32(data, checked(row + 4 + choiceIndex * 4), $"choice {groupIndex}:{choiceIndex} offset");
-                if (relative == 0)
-                {
-                    gapSeen = true;
-                    continue;
-                }
+                uint relative = ReadUInt32(data, row + 4 + c * 4, "choice offset");
+                if (relative == 0) { gapSeen = true; continue; }
                 if (gapSeen)
+                    throw new ToolkitException("SCRIPT_CHOICE_GAP", $"Choice group {g} has text after an empty slot.");
+                starts.Add(new TextRecordStart(RelativeToAbsolute(relative, profile.JumpTableOffset,
+                    contentStart, checksumStart, "choice"), false, g, c));
+            }
+        }
+        starts.Sort(static (a, b) => a.Start.CompareTo(b.Start));
+        for (int i = 1; i < starts.Count; i++)
+            if (starts[i - 1].Start == starts[i].Start)
+                throw new ToolkitException("SCRIPT_DUPLICATE_TEXT_OFFSET", $"Multiple text records reference 0x{starts[i].Start:X}.");
+
+        ScriptDialog[] dialogs = new ScriptDialog[dialogCount];
+        long remainingGlyphs = limits.MaximumScriptGlyphs;
+        for (int i = 0; i < starts.Count; i++)
+        {
+            TextRecordStart record = starts[i];
+            int boundary = i + 1 == starts.Count ? checksumStart : starts[i + 1].Start;
+            int position = record.Start;
+            uint relative = (uint)(record.Start - profile.JumpTableOffset);
+            if (record.IsDialog)
+            {
+                if (position > boundary - 4)
+                    throw new ToolkitException("SCRIPT_INTERVAL", "A dialogue header overlaps the next record or checksum.");
+                ushort marker = ReadUInt16(data, ref position, "dialogue marker");
+                if (marker != DialogStart)
+                    throw new ToolkitException("SCRIPT_DIALOG_MARKER", $"Dialogue at 0x{record.Start:X} does not start with 0xFFF0.");
+                ushort id = ReadUInt16(data, ref position, "dialogue ID");
+                ushort[] speaker = ReadField(data, ref position, boundary, false, limits, ref remainingGlyphs, "speaker", out _);
+                ushort[] message = ReadField(data, ref position, boundary, true, limits, ref remainingGlyphs, "message", out ushort terminator);
+                dialogs[record.PrimaryIndex] = new ScriptDialog
                 {
-                    throw new ToolkitException("SCRIPT_CHOICE_GAP", $"Choice group {groupIndex} contains an offset after an empty slot.");
-                }
-                int start = RelativeToAbsolute(relative, profile.JumpTableOffset, checksumStart, $"choice {groupIndex}:{choiceIndex}");
-                int position = start;
-                ushort[] glyphs = ReadGlyphsUntil(data, ref position, ChoiceEnd, checksumStart, $"choice {groupIndex}:{choiceIndex}");
-                ScriptChoice choice = new()
-                {
-                    GroupIndex = groupIndex,
-                    ChoiceIndex = choiceIndex,
-                    RelativeOffset = relative,
-                    Glyphs = glyphs,
-                    AbsoluteStart = start,
-                    AbsoluteEnd = position - 2
+                    Index = record.PrimaryIndex, RelativeOffset = relative, Id = id,
+                    SpeakerGlyphs = speaker, MessageGlyphs = message, MessageTerminator = terminator,
+                    AbsoluteStart = record.Start, AbsoluteEnd = position - 2
                 };
-                group.Choices.Add(choice);
-                intervals.Add(new Interval(start, position - 2, IntervalKind.Choice, groupIndex, choiceIndex));
             }
-            groups.Add(group);
-        }
-
-        intervals.Sort(static (left, right) => left.Start.CompareTo(right.Start));
-        int previousEnd = contentStart;
-        foreach (Interval interval in intervals)
-        {
-            if (interval.Start < contentStart || interval.Start < previousEnd || interval.End > checksumStart)
+            else
             {
-                throw new ToolkitException("SCRIPT_INTERVAL", $"Script semantic interval [0x{interval.Start:X},0x{interval.End:X}) overlaps or lies outside content.");
-            }
-            previousEnd = interval.End;
-        }
-
-        int minimumLogicalEnd = Math.Max(contentStart, intervals.Count == 0 ? contentStart : intervals[^1].End);
-        foreach (uint jump in jumps)
-        {
-            if (jump == 0)
-            {
-                continue;
-            }
-            int absolute = RelativeToAbsolute(jump, profile.JumpTableOffset, checksumStart, "jump target");
-            if (absolute < contentStart)
-            {
-                throw new ToolkitException("SCRIPT_JUMP_TARGET", $"Jump target 0x{jump:X} points inside the jump table.");
-            }
-            minimumLogicalEnd = Math.Max(minimumLogicalEnd, absolute);
-        }
-        int logicalEnd = checksumStart;
-        while (logicalEnd > minimumLogicalEnd && data[logicalEnd - 1] == 0)
-        {
-            logicalEnd--;
-        }
-        logicalEnd = (logicalEnd + 1) & ~1;
-        logicalEnd = Math.Max(logicalEnd, minimumLogicalEnd);
-        if (logicalEnd > checksumStart)
-        {
-            throw new ToolkitException("SCRIPT_LOGICAL_END", "Calculated script logical end overlaps checksum.");
-        }
-
-        return new LuckyStarScript(original, profile, magic, dialogTableAbsolute, choiceTableAbsolute, contentStart, logicalEnd, jumps, dialogs, groups);
-    }
-
-    /// <summary>
-    /// Serializes the current validated model into its binary representation.
-    /// </summary>
-    /// <param name="mutation">The requested text or binary mutations.</param>
-    /// <param name="limits">Optional conservative safety limits; defaults are used when omitted.</param>
-    /// <returns>The validated operation result.</returns>
-    /// <remarks>Malformed input or violated preconditions are rejected before a persistent output is committed.</remarks>
-    public ScriptBuildResult Build(ScriptMutation mutation, FileLimits? limits = null)
-    {
-        ArgumentNullException.ThrowIfNull(mutation);
-        limits ??= FileLimits.Default;
-        ValidateMutationKeys(mutation);
-
-        List<Replacement> replacements = [];
-        foreach (ScriptDialog dialog in Dialogs)
-        {
-            ushort[] speaker = mutation.SpeakerGlyphs.GetValueOrDefault(dialog.Index) ?? dialog.SpeakerGlyphs;
-            ushort[] message = mutation.MessageGlyphs.GetValueOrDefault(dialog.Index) ?? dialog.MessageGlyphs;
-            byte[] bytes = BuildDialog(dialog.Id, speaker, message, dialog.MessageTerminator);
-            replacements.Add(new Replacement(dialog.AbsoluteStart, dialog.AbsoluteEnd, bytes, $"dialog {dialog.Index}"));
-        }
-        foreach (ScriptChoiceGroup group in ChoiceGroups)
-        {
-            foreach (ScriptChoice choice in group.Choices)
-            {
-                ushort[] glyphs = mutation.ChoiceGlyphs.GetValueOrDefault((group.Index, choice.ChoiceIndex)) ?? choice.Glyphs;
-                byte[] bytes = BuildChoice(glyphs);
-                replacements.Add(new Replacement(choice.AbsoluteStart, choice.AbsoluteEnd, bytes, $"choice {group.Index}:{choice.ChoiceIndex}"));
-            }
-        }
-        replacements.Sort(static (left, right) => left.OldStart.CompareTo(right.OldStart));
-
-        List<byte> logical = new(_logicalEnd + replacements.Sum(static replacement => replacement.NewBytes.Length - (replacement.OldEnd - replacement.OldStart)));
-        logical.AddRange(_original.AsSpan(0, _contentStart).ToArray());
-        List<MapSegment> map = [];
-        int oldCursor = _contentStart;
-        int newCursor = _contentStart;
-        foreach (Replacement replacement in replacements)
-        {
-            if (replacement.OldStart < oldCursor)
-            {
-                throw new ToolkitException("SCRIPT_REPLACEMENT_OVERLAP", $"Replacement {replacement.Name} overlaps a previous range.");
-            }
-            if (replacement.OldStart > oldCursor)
-            {
-                int rawLength = replacement.OldStart - oldCursor;
-                logical.AddRange(_original.AsSpan(oldCursor, rawLength).ToArray());
-                map.Add(new MapSegment(oldCursor, replacement.OldStart, newCursor, checked(newCursor + rawLength), false));
-                oldCursor = replacement.OldStart;
-                newCursor += rawLength;
-            }
-            int replacementNewStart = newCursor;
-            logical.AddRange(replacement.NewBytes);
-            newCursor = checked(newCursor + replacement.NewBytes.Length);
-            map.Add(new MapSegment(replacement.OldStart, replacement.OldEnd, replacementNewStart, newCursor, true));
-            oldCursor = replacement.OldEnd;
-        }
-        if (oldCursor < _logicalEnd)
-        {
-            int rawLength = _logicalEnd - oldCursor;
-            logical.AddRange(_original.AsSpan(oldCursor, rawLength).ToArray());
-            map.Add(new MapSegment(oldCursor, _logicalEnd, newCursor, checked(newCursor + rawLength), false));
-            newCursor += rawLength;
-        }
-
-        int required = checked(logical.Count + 16);
-        int newLength = Math.Max(_original.Length, BinaryUtilities.Align(required, Profile.FileAlignment));
-        if (newLength > limits.MaximumInputBytes || newLength > int.MaxValue)
-        {
-            throw new ToolkitException("SCRIPT_OUTPUT_LIMIT", $"Rebuilt script size {newLength} exceeds configured limit.");
-        }
-        byte[] output = new byte[newLength];
-        logical.CopyTo(output, 0);
-
-        for (int i = 0; i < Dialogs.Count; i++)
-        {
-            uint relative = checked((uint)(MapBoundary(Dialogs[i].AbsoluteStart, map) - Profile.JumpTableOffset));
-            BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(checked(_dialogTableAbsolute + i * 4), 4), relative);
-        }
-        foreach (ScriptChoiceGroup group in ChoiceGroups)
-        {
-            int row = checked(_choiceTableAbsolute + group.Index * 32);
-            foreach (ScriptChoice choice in group.Choices)
-            {
-                uint relative = checked((uint)(MapBoundary(choice.AbsoluteStart, map) - Profile.JumpTableOffset));
-                BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(checked(row + 4 + choice.ChoiceIndex * 4), 4), relative);
-            }
-        }
-        for (int i = 0; i < _jumps.Length; i++)
-        {
-            uint oldRelative = _jumps[i];
-            uint newRelative = oldRelative == 0
-                ? 0
-                : checked((uint)(MapOffset(checked(Profile.JumpTableOffset + (int)oldRelative), map) - Profile.JumpTableOffset));
-            BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(checked(Profile.JumpTableOffset + i * 4), 4), newRelative);
-        }
-        RgoChecksum.Apply(output);
-
-        LuckyStarScript verification = Parse(output, Profile, limits, true);
-        if (verification.Dialogs.Count != Dialogs.Count || verification.ChoiceGroups.Count != ChoiceGroups.Count)
-        {
-            throw new ToolkitException("SCRIPT_VERIFY_COUNT", "Rebuilt script semantic count verification failed.");
-        }
-        foreach (ScriptDialog expected in Dialogs)
-        {
-            ScriptDialog actual = verification.Dialogs[expected.Index];
-            ushort[] expectedSpeaker = mutation.SpeakerGlyphs.GetValueOrDefault(expected.Index) ?? expected.SpeakerGlyphs;
-            ushort[] expectedMessage = mutation.MessageGlyphs.GetValueOrDefault(expected.Index) ?? expected.MessageGlyphs;
-            if (!actual.SpeakerGlyphs.AsSpan().SequenceEqual(expectedSpeaker)
-                || !actual.MessageGlyphs.AsSpan().SequenceEqual(expectedMessage)
-                || actual.MessageTerminator != expected.MessageTerminator)
-            {
-                throw new ToolkitException("SCRIPT_VERIFY_DIALOG", $"Rebuilt dialog {expected.Index} failed glyph verification.");
-            }
-        }
-        foreach (ScriptChoiceGroup group in ChoiceGroups)
-        {
-            foreach (ScriptChoice expected in group.Choices)
-            {
-                ScriptChoice actual = verification.ChoiceGroups[group.Index].Choices.Single(choice => choice.ChoiceIndex == expected.ChoiceIndex);
-                ushort[] expectedGlyphs = mutation.ChoiceGlyphs.GetValueOrDefault((group.Index, expected.ChoiceIndex)) ?? expected.Glyphs;
-                if (!actual.Glyphs.AsSpan().SequenceEqual(expectedGlyphs))
+                ushort[] glyphs = ReadField(data, ref position, boundary, false, limits, ref remainingGlyphs, "choice", out _);
+                groups[record.PrimaryIndex].Choices.Add(new ScriptChoice
                 {
-                    throw new ToolkitException("SCRIPT_VERIFY_CHOICE", $"Rebuilt choice {group.Index}:{expected.ChoiceIndex} failed glyph verification.");
-                }
+                    GroupIndex = record.PrimaryIndex, ChoiceIndex = record.SecondaryIndex,
+                    RelativeOffset = relative, Glyphs = glyphs, AbsoluteStart = record.Start, AbsoluteEnd = position - 2
+                });
             }
+            minimumLogicalEnd = Math.Max(minimumLogicalEnd, position);
         }
+        foreach (ScriptChoiceGroup group in groups)
+            group.Choices.Sort(static (a, b) => a.ChoiceIndex.CompareTo(b.ChoiceIndex));
 
-        return new ScriptBuildResult(output, _original.Length, output.Length,
-            Blocks2K(_original.Length), Blocks2K(output.Length));
+        int logicalEnd = checksumStart;
+        while (logicalEnd > minimumLogicalEnd && data[logicalEnd - 1] == 0) logicalEnd--;
+        logicalEnd = Math.Max((logicalEnd + 1) & ~1, minimumLogicalEnd);
+        return new LuckyStarScript(data.ToArray(), profile, BinaryPrimitives.ReadUInt16LittleEndian(data),
+            dialogTable, choiceTable, contentStart, logicalEnd, jumps, dialogs, groups);
     }
 
-    /// <summary>
-    /// Validates mutation keys while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="mutation">The requested text or binary mutations.</param>
-    /// <remarks>Malformed input or violated preconditions are rejected before a persistent output is committed.</remarks>
-    private void ValidateMutationKeys(ScriptMutation mutation)
+    /// <summary>Validates caller configuration independently of untrusted file fields.</summary>
+    /// <param name="profile">Requested fixed layout.</param>
+    /// <param name="limits">Nonnegative size and count budgets.</param>
+    /// <exception cref="ToolkitException">The profile alignment or a configured limit is invalid.</exception>
+    private static void ValidateConfiguration(ScriptProfile profile, FileLimits limits)
     {
-        foreach (int index in mutation.SpeakerGlyphs.Keys.Concat(mutation.MessageGlyphs.Keys))
-        {
-            if ((uint)index >= (uint)Dialogs.Count)
-            {
-                throw new ToolkitException("SCRIPT_MUTATION_DIALOG", $"Mutation references missing dialog {index}.");
-            }
-        }
-        foreach ((int group, int choice) in mutation.ChoiceGlyphs.Keys)
-        {
-            if ((uint)group >= (uint)ChoiceGroups.Count || ChoiceGroups[group].Choices.All(item => item.ChoiceIndex != choice))
-            {
-                throw new ToolkitException("SCRIPT_MUTATION_CHOICE", $"Mutation references missing choice {group}:{choice}.");
-            }
-        }
+        if (profile.JumpTableOffset < MetadataBase + 16 || (profile.JumpTableOffset & 3) != 0
+            || profile.FileAlignment < 16 || (profile.FileAlignment & 15) != 0)
+            throw new ToolkitException("SCRIPT_PROFILE", "Jump-table offsets must be 4-byte aligned and file alignment a positive multiple of 16.");
+        if (limits.MaximumInputBytes < 0 || limits.MaximumScriptBytes < 0 || limits.MaximumScriptDialogs < 0
+            || limits.MaximumScriptChoiceGroups < 0 || limits.MaximumScriptJumps < 0
+            || limits.MaximumScriptFieldGlyphs < 0 || limits.MaximumScriptGlyphs < 0)
+            throw new ToolkitException("SCRIPT_LIMITS", "Script budgets cannot be negative.");
     }
 
-    /// <summary>
-    /// Builds dialog while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="id">The numeric resource identifier.</param>
-    /// <param name="speaker">The speaker value.</param>
-    /// <param name="message">The diagnostic message used when validation fails.</param>
-    /// <param name="terminator">The terminator value.</param>
-    /// <returns>The resulting binary or typed sequence.</returns>
-    /// <remarks>Malformed input or violated preconditions are rejected before a persistent output is committed.</remarks>
-    private static byte[] BuildDialog(ushort id, IReadOnlyList<ushort> speaker, IReadOnlyList<ushort> message, ushort terminator)
+    /// <summary>Reads a count without narrowing an unchecked UInt32 from the input.</summary>
+    /// <param name="data">Validated header buffer.</param>
+    /// <param name="offset">Absolute count field position.</param>
+    /// <param name="maximum">Inclusive permitted count.</param>
+    /// <param name="code">Stable error code for exceeding this budget.</param>
+    /// <returns>A count safe to use for collection allocation.</returns>
+    private static int ReadCount(ReadOnlySpan<byte> data, int offset, int maximum, string code)
     {
-        if (!MessageEnds.Contains(terminator))
-        {
-            throw new ToolkitException("SCRIPT_MESSAGE_END", $"Unsupported message terminator 0x{terminator:X4}.");
-        }
-        byte[] bytes = new byte[checked((3 + speaker.Count + message.Count) * 2)];
-        int position = 0;
-        WriteUInt16(bytes, ref position, DialogStart);
-        WriteUInt16(bytes, ref position, id);
-        foreach (ushort glyph in speaker)
-        {
-            WriteUInt16(bytes, ref position, glyph);
-        }
-        WriteUInt16(bytes, ref position, SpeakerEnd);
-        foreach (ushort glyph in message)
-        {
-            WriteUInt16(bytes, ref position, glyph);
-        }
-        return bytes;
+        uint count = ReadUInt32(data, offset, "record count");
+        if (count > maximum) throw new ToolkitException(code, $"Record count {count} exceeds {maximum}.");
+        return (int)count;
     }
 
-    /// <summary>
-    /// Builds choice while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="glyphs">The glyphs value.</param>
-    /// <returns>The resulting binary or typed sequence.</returns>
-    /// <remarks>Malformed input or violated preconditions are rejected before a persistent output is committed.</remarks>
-    private static byte[] BuildChoice(IReadOnlyList<ushort> glyphs)
+    /// <summary>Checks a metadata table's entire range before the jump table; zero offsets are allowed only for empty tables.</summary>
+    /// <param name="data">Scenario header.</param>
+    /// <param name="fieldOffset">Position of the relative offset field.</param>
+    /// <param name="length">Validated total table byte count.</param>
+    /// <param name="jumpOffset">Exclusive end of metadata space.</param>
+    /// <param name="context">Table name for diagnostics.</param>
+    /// <returns>The absolute table offset without overflowing Int32.</returns>
+    private static int ReadTableOffset(ReadOnlySpan<byte> data, int fieldOffset, int length, int jumpOffset, string context)
     {
-        byte[] bytes = new byte[checked(glyphs.Count * 2)];
-        int position = 0;
-        foreach (ushort glyph in glyphs)
-        {
-            WriteUInt16(bytes, ref position, glyph);
-        }
-        return bytes;
+        uint relative = ReadUInt32(data, fieldOffset, context);
+        if (length == 0 && relative == 0) return MetadataBase;
+        long absolute = MetadataBase + (long)relative;
+        if ((relative & 3) != 0 || absolute < MetadataBase + 16 || absolute > (long)jumpOffset - length)
+            throw new ToolkitException("SCRIPT_TABLE_RANGE", $"The {context} table does not fit in metadata space.");
+        return (int)absolute;
     }
 
-    /// <summary>
-    /// Relocates a script segment boundary while preserving whether it lies before or after a text replacement.
-    /// </summary>
-    /// <param name="oldOffset">The old offset value.</param>
-    /// <param name="map">The glyph map used for text conversion.</param>
-    /// <returns>The validated operation result.</returns>
-    private static int MapBoundary(int oldOffset, IReadOnlyList<MapSegment> map)
+    /// <summary>Scans a bounded field before allocating its exact glyph array; delimiters never consume the checksum.</summary>
+    /// <param name="data">Complete scenario buffer.</param>
+    /// <param name="position">Field start on entry; byte after its delimiter on success.</param>
+    /// <param name="boundary">Exclusive next-record or checksum position.</param>
+    /// <param name="message">Whether all three message-ending codes are delimiters.</param>
+    /// <param name="limits">Per-field allocation budget.</param>
+    /// <param name="remainingGlyphs">Shared budget, decremented only after the field is validated.</param>
+    /// <param name="context">Field label for errors.</param>
+    /// <param name="terminator">The exact original delimiter word.</param>
+    /// <returns>Little-endian glyph indices, excluding the delimiter.</returns>
+    /// <exception cref="ToolkitException">A delimiter is missing or a glyph budget is exhausted.</exception>
+    private static ushort[] ReadField(ReadOnlySpan<byte> data, ref int position, int boundary, bool message,
+        FileLimits limits, ref long remainingGlyphs, string context, out ushort terminator)
     {
-        foreach (MapSegment segment in map)
-        {
-            if (oldOffset == segment.OldStart)
-            {
-                return segment.NewStart;
-            }
-            if (oldOffset == segment.OldEnd)
-            {
-                return segment.NewEnd;
-            }
-        }
-        return MapOffset(oldOffset, map);
-    }
-
-    /// <summary>
-    /// Relocates an original script offset and rejects ambiguous references inside changed text.
-    /// </summary>
-    /// <param name="oldOffset">The old offset value.</param>
-    /// <param name="map">The glyph map used for text conversion.</param>
-    /// <returns>The validated operation result.</returns>
-    private static int MapOffset(int oldOffset, IReadOnlyList<MapSegment> map)
-    {
-        foreach (MapSegment segment in map)
-        {
-            if (oldOffset < segment.OldStart || oldOffset > segment.OldEnd)
-            {
-                continue;
-            }
-            if (oldOffset == segment.OldStart)
-            {
-                return segment.NewStart;
-            }
-            if (oldOffset == segment.OldEnd)
-            {
-                return segment.NewEnd;
-            }
-            if (segment.Mutable)
-            {
-                throw new ToolkitException("SCRIPT_JUMP_INSIDE_TEXT", $"A jump target at 0x{oldOffset:X} lies inside translated text and cannot be relocated safely.");
-            }
-            return checked(segment.NewStart + oldOffset - segment.OldStart);
-        }
-        throw new ToolkitException("SCRIPT_OFFSET_MAP", $"Cannot map old script offset 0x{oldOffset:X}.");
-    }
-
-    /// <summary>
-    /// Reads glyphs until while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="data">The binary data to process.</param>
-    /// <param name="position">The mutable position value updated by the operation.</param>
-    /// <param name="terminator">The terminator value.</param>
-    /// <param name="limit">The limit value.</param>
-    /// <param name="context">A diagnostic label included in validation errors.</param>
-    /// <returns>The resulting binary or typed sequence.</returns>
-    private static ushort[] ReadGlyphsUntil(ReadOnlySpan<byte> data, ref int position, ushort terminator, int limit, string context)
-    {
-        List<ushort> values = [];
+        int start = position;
+        int scan = start;
+        int count = 0;
         while (true)
         {
-            if (position > limit - 2)
-            {
-                throw new ToolkitException("SCRIPT_GLYPH_EOF", $"{context} reaches checksum without terminator 0x{terminator:X4}.");
-            }
-            ushort value = ReadUInt16(data, ref position, context);
-            if (value == terminator)
-            {
-                return values.ToArray();
-            }
-            values.Add(value);
+            if (scan > boundary - 2)
+                throw new ToolkitException("SCRIPT_GLYPH_EOF", $"The {context} field reaches its record boundary without a delimiter.");
+            ushort word = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(scan, 2));
+            scan += 2;
+            if (message ? IsMessageEnd(word) : word == SpeakerEnd) { terminator = word; break; }
+            if (count >= limits.MaximumScriptFieldGlyphs)
+                throw new ToolkitException("SCRIPT_FIELD_LIMIT", $"The {context} field exceeds its glyph budget.");
+            if (count >= remainingGlyphs)
+                throw new ToolkitException("SCRIPT_GLYPH_LIMIT", "The scenario exceeds its total decoded-glyph budget.");
+            count++;
         }
+        remainingGlyphs -= count;
+        ushort[] result = new ushort[count];
+        for (int i = 0; i < count; i++)
+            result[i] = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(start + i * 2, 2));
+        position = scan;
+        return result;
     }
 
-    /// <summary>
-    /// Reads u int 16 while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="data">The binary data to process.</param>
-    /// <param name="position">The mutable position value updated by the operation.</param>
-    /// <param name="context">A diagnostic label included in validation errors.</param>
-    /// <returns>The validated operation result.</returns>
+    /// <summary>Recognizes only the three observed structural message delimiters.</summary>
+    /// <param name="word">A scenario word, not a Unicode code point.</param>
+    /// <returns>True for clear, keep or alternate message termination.</returns>
+    private static bool IsMessageEnd(ushort word) => word is 0xFFFB or 0xFFFD or 0xFFFF;
+
+    /// <summary>Reads one bounded little-endian word and advances its cursor.</summary>
+    /// <param name="data">Source bytes.</param>
+    /// <param name="position">Absolute cursor, advanced by two.</param>
+    /// <param name="context">Diagnostic label.</param>
+    /// <returns>The decoded word.</returns>
     private static ushort ReadUInt16(ReadOnlySpan<byte> data, ref int position, string context)
     {
-        if (position < 0 || position > data.Length - 2)
-        {
-            throw new ToolkitException("SCRIPT_EOF", $"Unexpected end while reading {context} at 0x{position:X}.");
-        }
+        EnsureRange(data, position, 2, context);
         ushort value = BinaryPrimitives.ReadUInt16LittleEndian(data[position..]);
         position += 2;
         return value;
     }
 
-    /// <summary>
-    /// Reads u int 32 while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="data">The binary data to process.</param>
-    /// <param name="offset">The zero-based byte or element offset.</param>
-    /// <param name="context">A diagnostic label included in validation errors.</param>
-    /// <returns>The validated operation result.</returns>
+    /// <summary>Reads one bounded little-endian metadata or jump-table value.</summary>
+    /// <param name="data">Source bytes.</param>
+    /// <param name="offset">Absolute four-byte field position.</param>
+    /// <param name="context">Diagnostic label.</param>
+    /// <returns>The unsigned value without a narrowing conversion.</returns>
     private static uint ReadUInt32(ReadOnlySpan<byte> data, int offset, string context)
     {
         EnsureRange(data, offset, 4, context);
         return BinaryPrimitives.ReadUInt32LittleEndian(data[offset..]);
     }
 
-    /// <summary>
-    /// Writes u int 16 while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="data">The binary data to process.</param>
-    /// <param name="position">The mutable position value updated by the operation.</param>
-    /// <param name="value">The value to process.</param>
-    private static void WriteUInt16(Span<byte> data, ref int position, ushort value)
-    {
-        BinaryPrimitives.WriteUInt16LittleEndian(data[position..], value);
-        position += 2;
-    }
-
-    /// <summary>
-    /// Adds the scenario jump-table base to a relative offset using checked arithmetic.
-    /// </summary>
-    /// <param name="relative">The relative value.</param>
-    /// <param name="jumpTableOffset">The jump table offset value.</param>
-    /// <param name="limit">The limit value.</param>
-    /// <param name="context">A diagnostic label included in validation errors.</param>
-    /// <returns>The validated operation result.</returns>
-    private static int RelativeToAbsolute(uint relative, int jumpTableOffset, int limit, string context)
+    /// <summary>Validates an aligned target in command/text space using wide offset arithmetic.</summary>
+    /// <param name="relative">Target relative to the jump-table base.</param>
+    /// <param name="jumpTableOffset">Absolute jump-table base.</param>
+    /// <param name="contentStart">First permissible target byte.</param>
+    /// <param name="limit">Checksum start, which no target word may overlap.</param>
+    /// <param name="context">Diagnostic label.</param>
+    /// <returns>An absolute target that fits an entire two-byte word.</returns>
+    private static int RelativeToAbsolute(uint relative, int jumpTableOffset, int contentStart, int limit, string context)
     {
         long absolute = (long)jumpTableOffset + relative;
-        if (absolute < 0 || absolute > limit - 2)
-        {
-            throw new ToolkitException("SCRIPT_OFFSET", $"{context} relative offset 0x{relative:X} points outside script data.");
-        }
+        if ((relative & 1) != 0 || absolute < contentStart || absolute > limit - 2)
+            throw new ToolkitException("SCRIPT_OFFSET", $"The {context} offset 0x{relative:X} is unaligned or outside command/text space.");
         return (int)absolute;
     }
 
-    /// <summary>
-    /// Ensures range while enforcing the relevant format and safety invariants.
-    /// </summary>
-    /// <param name="data">The binary data to process.</param>
-    /// <param name="offset">The zero-based byte or element offset.</param>
-    /// <param name="length">The number of bytes or elements to process.</param>
-    /// <param name="context">A diagnostic label included in validation errors.</param>
+    /// <summary>Rejects invalid byte ranges without overflowing offset-plus-length arithmetic.</summary>
+    /// <param name="data">Source or destination bounds.</param>
+    /// <param name="offset">Nonnegative start.</param>
+    /// <param name="length">Nonnegative byte count.</param>
+    /// <param name="context">Diagnostic label.</param>
     private static void EnsureRange(ReadOnlySpan<byte> data, int offset, int length, string context)
     {
         if (offset < 0 || length < 0 || offset > data.Length - length)
-        {
-            throw new ToolkitException("SCRIPT_RANGE", $"{context} range [0x{offset:X},0x{offset + length:X}) exceeds script length 0x{data.Length:X}.");
-        }
+            throw new ToolkitException("SCRIPT_RANGE", $"The {context} range at 0x{offset:X} does not fit in {data.Length} bytes.");
     }
 
-    /// <summary>
-    /// Converts a scenario byte count into the required number of 2048-byte allocation blocks.
-    /// </summary>
-    /// <param name="length">The number of bytes or elements to process.</param>
-    /// <returns>The validated operation result.</returns>
-    private static int Blocks2K(int length) => checked((length + 2047) / 2048);
-
-    /// <summary>
-    /// Defines the supported interval kind values.
-    /// </summary>
-    private enum IntervalKind
-    {
-        /// <summary>A dialogue interval containing speaker, message and their structural delimiters.</summary>
-        Dialog,
-        /// <summary>A choice-text interval ending in its original choice delimiter.</summary>
-        Choice
-    }
-    /// <summary>
-    /// Represents immutable interval data exchanged by the toolkit.
-    /// </summary>
-    /// <param name="Start">The start value used by this model or operation.</param>
-    /// <param name="End">The end value used by this model or operation.</param>
-    /// <param name="Kind">The kind value used by this model or operation.</param>
-    /// <param name="PrimaryIndex">The primary index value used by this model or operation.</param>
-    /// <param name="SecondaryIndex">The secondary index value used by this model or operation.</param>
-    private sealed record Interval(int Start, int End, IntervalKind Kind, int PrimaryIndex, int SecondaryIndex);
-    /// <summary>
-    /// Represents immutable replacement data exchanged by the toolkit.
-    /// </summary>
-    /// <param name="OldStart">The old start value used by this model or operation.</param>
-    /// <param name="OldEnd">The old end value used by this model or operation.</param>
-    /// <param name="NewBytes">The new bytes value used by this model or operation.</param>
-    /// <param name="Name">The name value used by this model or operation.</param>
-    private sealed record Replacement(int OldStart, int OldEnd, byte[] NewBytes, string Name);
-    /// <summary>
-    /// Represents immutable map segment data exchanged by the toolkit.
-    /// </summary>
-    /// <param name="OldStart">The old start value used by this model or operation.</param>
-    /// <param name="OldEnd">The old end value used by this model or operation.</param>
-    /// <param name="NewStart">The new start value used by this model or operation.</param>
-    /// <param name="NewEnd">The new end value used by this model or operation.</param>
-    /// <param name="Mutable">The mutable value used by this model or operation.</param>
-    private sealed record MapSegment(int OldStart, int OldEnd, int NewStart, int NewEnd, bool Mutable);
+    /// <summary>A prevalidated physical text start; its end is bounded by the next sorted start.</summary>
+    /// <param name="Start">Absolute first text-record byte.</param>
+    /// <param name="IsDialog">True for a dialogue, false for a choice.</param>
+    /// <param name="PrimaryIndex">Dialogue or group table index.</param>
+    /// <param name="SecondaryIndex">Choice index; minus one for a dialogue.</param>
+    private sealed record TextRecordStart(int Start, bool IsDialog, int PrimaryIndex, int SecondaryIndex);
 }

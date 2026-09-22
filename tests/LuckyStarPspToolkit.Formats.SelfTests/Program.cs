@@ -37,6 +37,8 @@ internal static partial class SelfTestRunner
     {
         try
         {
+            if (args.Contains("--script-benchmark", StringComparer.Ordinal) || args.Contains("--probe", StringComparer.Ordinal))
+                return ScriptScaleFixture.Run(args);
             Test("duplicate and escaped JSON properties", TestStrictJson);
             Test("filesystem root and portable path containment", TestRootPathContainment);
             Test("immutable glyph-map snapshot", TestGlyphSnapshot);
@@ -54,6 +56,19 @@ internal static partial class SelfTestRunner
             Test("independent script fixture parse", TestScriptParse);
             Test("script mutation and relocation", TestScriptMutation);
             Test("deterministic script mutation fuzz", TestScriptFuzz);
+            Test("unchanged text targets survive no-op and unrelated edits", TestScriptUnchangedJump);
+            Test("scenario checksum cannot terminate message text", TestScriptChecksumNotText);
+            Test("scenario fields stop at the next physical record", TestScriptPhysicalBoundaries);
+            Test("scenario metadata ranges, alignment and profile limits", TestScriptMetadataPreflight);
+            Test("scenario duplicate and misaligned offset preflight", TestScriptOffsetPreflight);
+            Test("scenario input and glyph allocation budgets", TestScriptGlyphBudgets);
+            Test("scenario output size preflight before large allocation", TestScriptOutputPreflight);
+            Test("scenario direct API mutations reject structural delimiters", TestScriptDirectMutationSafety);
+            Test("empty choice anchors and reordered dialogue tables", TestScriptEmptyAndReordered);
+            Test("opaque, short-aligned and NIM scenario round-trips", TestScriptOpaqueAndNim);
+            Test("indexed relocation against independent linear oracle", TestScriptIndexedMap);
+            Test("8192-dialogue scenario and all 16385 jump targets", TestScriptLargeRebuild);
+            Test("1024 deterministic scenario header mutations", TestScriptHeaderFuzz);
             Test("independent CPK/ITOC and CRILAYLA fixture", TestCpkParse);
             Test("CPK replacement and verified rebuild", TestCpkRebuild);
             Test("workspace validation and JSON end-to-end", TestWorkspace);
