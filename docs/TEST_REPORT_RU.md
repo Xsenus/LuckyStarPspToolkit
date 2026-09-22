@@ -67,4 +67,4 @@ Native: `dotnet build LuckyStarPspToolkit.sln -c Release`, три self-test пр
 `python scripts/web_reserve_integration.py --output artifacts/browser-check` с Playwright Chromium.
 В диагностической среде — scripts/verify_roslyn.py с явно указанным доверенным pwsh.
 Успешные отчёты привязаны к SHA-256 текущих исходников и журналов; изменения делают evidence устаревшим.
-Проверку комплекта после распаковки см. reports/CLEAN_ARCHIVE_VERIFY.json и INTERNAL_CHECKSUMS в корне.
+Проверку комплекта после распаковки см. reports/CLEAN_ARCHIVE_VERIFY.json и CHECKSUMS.sha256 в корне.
