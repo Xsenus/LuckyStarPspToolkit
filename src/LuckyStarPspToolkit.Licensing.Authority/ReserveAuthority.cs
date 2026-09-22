@@ -51,8 +51,9 @@ public sealed partial class LicenseAuthority
 
     /// <summary>Changes the reserve global switch with an epoch increase; re-enabling never revives retired grants.</summary>
     /// <param name="request">Exactly-once administrative transition.</param>
+    /// <param name="includeGrants">False for the browser: return only policy without materializing the entire historical grant list.</param>
     /// <returns>Committed policy.</returns>
-    public ReserveOverview SetReservePolicy(ReservePolicyRequest request)
+    public ReserveOverview SetReservePolicy(ReservePolicyRequest request, bool includeGrants = true)
     {
         ValidateUuid(request.RequestId);
         string fingerprint = LicenseCrypto.Digest(LicenseJson.Write(request));
@@ -68,7 +69,7 @@ public sealed partial class LicenseAuthority
                 db.Audit.Add(new(now, request.Enabled ? "reserve-enable" : "reserve-disable", "", ""));
                 return 0;
             });
-            return ReserveStatus();
+            return includeGrants ? ReserveStatus() : store.ReadCommitted(db => new ReserveOverview(db.ReserveEnabled, db.ReserveEpoch, 168, Array.Empty<ReserveGrant>()));
         }
     }
 

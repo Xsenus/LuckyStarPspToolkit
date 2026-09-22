@@ -3,7 +3,7 @@
 Owner-only UI served by LicenseWebServer. Runtime: pinned React browser production modules,
 local CSS and handwritten ES modules; no CDN/eval, native addons, remote imports or npm hooks.
 
-Build (Node22+): `node --test web/license-admin/tests/model.test.mjs` then
+Build (Node22+): `node web/license-admin/test.mjs` then
 `node web/license-admin/build.mjs` from repository root. Output: web/license-admin/dist.
 The owner publisher includes it as web/. No Node process is needed on the deployed VPS.
 

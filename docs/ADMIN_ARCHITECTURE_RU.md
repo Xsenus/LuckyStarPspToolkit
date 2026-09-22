@@ -52,3 +52,10 @@ Native Playwright test предусмотрен scripts/web_reserve_integration.
 `--browser-bridge`: реальный DOM/React, реальный HTTP backend и процессы клиента, но transport/cookie
 для fetch обеспечивает Python HTTP client. Такой прогон НЕ проверяет native browser origin/cookie/CSP
 и фактическую запись браузерных скачиваний. В CI этот флаг не применяется.
+
+## Bounded reads 0.18.0
+
+POST /api/licenses/query, /api/reserve/query и /api/license/get используют ту же
+owner-session/Origin/CSRF boundary. Токен страницы не авторизует запрос; он проверяется
+HMAC до JSON parsing и связывается с запросом/ревизией/исходным временем. Процессная
+ротация курсорного ключа не меняет издателя лицензий. Детали — ADMIN_QUERIES_RU.md.

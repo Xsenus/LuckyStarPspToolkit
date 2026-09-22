@@ -108,3 +108,62 @@ export async function mutationApi(path, body, csrf, sender = requestApi) {
         if (entry.inflight === call) entry.inflight = null;
     }
 }
+
+/** Empty bounded view used before the first owner query; counters never pretend to be a complete local database. */
+export function emptyOwnerPage() {
+    return { items: [], total: 0, nextCursor: '', revision: 0, asOfUtc: 0,
+        counts: { total: 0, active: 0, pending: 0, expired: 0, suspended: 0, revoked: 0 },
+        policy: { enabled: false, epoch: 0, maximumHours: 168 } };
+}
+/** Owner page navigation keeps only cursor history (at most 4096 small tokens), not the rows of every visited page.
+ * Failed next/previous requests leave the visible page intact. An expired/changed snapshot restarts once,
+ * explicitly informs the owner, and never retries a mutation. Superseded responses cannot replace newer results.
+ */
+export function createOwnerPager(path, csrf, sender = requestApi, defaults = {}) {
+    let generation = 0;
+    let state = { data: emptyOwnerPage(), query: { limit: 25, search: '', status: '', activatedOnly: false, ...defaults },
+        tokens: [''], index: 0, notice: '' };
+    /** Reject a malformed server result before accepting navigation state; the server separately enforces its own bounds. */
+    function validate(value, limit) {
+        if (!value || !Array.isArray(value.items) || value.items.length > limit ||
+            !Number.isSafeInteger(value.total) || value.total < value.items.length ||
+            !Number.isSafeInteger(value.revision) || value.revision < 0 ||
+            !Number.isSafeInteger(value.asOfUtc) || value.asOfUtc < 0 ||
+            typeof value.nextCursor !== 'string' || value.nextCursor.length > 2048 ||
+            (value.nextCursor && value.items.length === 0) ||
+            value.items.some(x => !x || typeof x.id !== 'string') || new Set(value.items.map(x => x.id)).size !== value.items.length)
+            throw new Error('Некорректная страница сервера. Обновите список.');
+        return value;
+    }
+    return {
+        /** Read the last complete navigation state; failed requests never commit a half-updated page. */
+        get state() { return state; },
+        /** Invalidate outstanding reads when the authenticated console unmounts. */
+        cancel() { generation++; },
+        /** Load one read-only query, using previous server cursors rather than downloading/filtering the full license collection. */
+        async load(filters = {}, direction = 'first') {
+            if (!['first', 'next', 'previous'].includes(direction)) throw new Error('Неверное направление страницы');
+            const query = { ...state.query, ...filters };
+            if (direction !== 'first' && JSON.stringify(canonicalMutation(query)) !== JSON.stringify(canonicalMutation(state.query)))
+                throw new Error('Новые фильтры требуют первой страницы');
+            let index = direction === 'next' ? state.index + 1 : direction === 'previous' ? state.index - 1 : 0;
+            if (index < 0 || index >= 4096 || (direction === 'next' && !state.data.nextCursor)) return state;
+            let tokens = direction === 'first' ? [''] : direction === 'next'
+                ? [...state.tokens.slice(0, index), state.data.nextCursor] : [...state.tokens];
+            const ticket = ++generation;
+            let value, notice = '';
+            try { value = await sender(path, { ...query, cursor: tokens[index] }, csrf); }
+            catch (error) {
+                if (ticket !== generation) return state;
+                if (tokens[index] && ['OWNER_PAGE_STALE', 'OWNER_PAGE_CURSOR'].includes(error.code)) {
+                    index = 0; tokens = [''];
+                    notice = 'Данные изменились или срок страницы истёк. Открыта первая страница.';
+                    value = await sender(path, { ...query, cursor: '' }, csrf);
+                } else throw error;
+            }
+            if (ticket !== generation) return state;
+            state = { data: validate(value, query.limit), query, tokens, index, notice };
+            return state;
+        }
+    };
+}

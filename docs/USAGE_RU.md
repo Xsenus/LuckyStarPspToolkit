@@ -1,4 +1,4 @@
-> **Изменение 0.17.0:** все рабочие команды требуют онлайн-лицензию. Сначала [инструкция владельца](LICENSE_OWNER_RU.md) и [активация](LICENSE_CUSTOMER_RU.md). Сборка без `--license-trust` остаётся заблокированной. Старое standalone demo требует уже активированный CLI; `scripts/license_integration.py` проверяет полный сценарий на отдельном тестовом издателе.
+> **Изменение 0.18.0:** все рабочие команды требуют онлайн-лицензию. Сначала [инструкция владельца](LICENSE_OWNER_RU.md) и [активация](LICENSE_CUSTOMER_RU.md). Сборка без `--license-trust` остаётся заблокированной. Старое standalone demo требует уже активированный CLI; `scripts/license_integration.py` проверяет полный сценарий на отдельном тестовом издателе.
 
 # Запуск и сборка 0.13.0
 
@@ -41,13 +41,13 @@ Visual Studio необязательна. Обычный `dotnet build LuckyStar
 После успешной команды:
 
 ```text
-artifacts/releases/0.17.0/
+artifacts/releases/0.18.0/
   win-x64/lsptool.exe
   win-x64/BUILD-STATUS.json
   win-x64/docs/
   win-x64/profiles/
-  LuckyStarPspToolkit-0.17.0-win-x64.zip
-  LuckyStarPspToolkit-0.17.0-win-x64.zip.sha256
+  LuckyStarPspToolkit-0.18.0-win-x64.zip
+  LuckyStarPspToolkit-0.18.0-win-x64.zip.sha256
   build-report.json
 ```
 

@@ -133,6 +133,12 @@ public sealed class LicenseWebServer : IAsyncDisposable
                     _ = authentication.Require(sessionId, csrf);
                     switch (path)
                     {
+                        case "/api/licenses/query":
+                            result = authority.QueryLicenses(LicenseJson.Read<OwnerPageRequest>(body)); break;
+                        case "/api/license/get":
+                            result = authority.QueryLicense(LicenseJson.Read<OwnerLicenseRequest>(body)); break;
+                        case "/api/reserve/query":
+                            result = authority.QueryReserves(LicenseJson.Read<OwnerPageRequest>(body)); break;
                         case "/api/logout":
                             _ = LicenseJson.Read<Dictionary<string, string>>(body);
                             authentication.Logout(sessionId); SetCookie(response, "", true); result = new { ok = true }; break;
@@ -150,7 +156,7 @@ public sealed class LicenseWebServer : IAsyncDisposable
                             if (change.Action is "revoke" or "permanent" or "reset-device") _ = authentication.Require(sessionId, csrf, true);
                             result = authority.Change(change); break;
                         case "/api/reserve/policy":
-                            _ = authentication.Require(sessionId, csrf, true); result = authority.SetReservePolicy(LicenseJson.Read<ReservePolicyRequest>(body)); break;
+                            _ = authentication.Require(sessionId, csrf, true); result = authority.SetReservePolicy(LicenseJson.Read<ReservePolicyRequest>(body), false); break;
                         case "/api/reserve/issue":
                             _ = authentication.Require(sessionId, csrf, true); result = authority.IssueReserve(LicenseJson.Read<ReserveIssueRequest>(body)); break;
                         case "/api/reserve/revoke":
@@ -165,7 +171,7 @@ public sealed class LicenseWebServer : IAsyncDisposable
         catch (LicenseException ex)
         {
             int status = ex.Code switch { "WEB_UNAUTHORIZED" or "WEB_AUTH_FAILED" => 401, "WEB_ORIGIN" or "WEB_CSRF" or "WEB_REAUTH_REQUIRED" => 403,
-                "WEB_NOT_FOUND" => 404, "WEB_RATE_LIMIT" or "WEB_BUSY" => 429, "WEB_BODY" => 413, "WEB_CONTENT" => 415, _ => 400 };
+                "OWNER_PAGE_STALE" => 409, "WEB_NOT_FOUND" => 404, "WEB_RATE_LIMIT" or "WEB_BUSY" => 429, "WEB_BODY" => 413, "WEB_CONTENT" => 415, _ => 400 };
             try { await JsonAsync(context.Response, status, new LicenseError(ex.Code, ex.Message), timeout.Token).ConfigureAwait(false); } catch { context.Response.Abort(); }
         }
         catch (Exception)

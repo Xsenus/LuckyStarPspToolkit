@@ -1,3 +1,14 @@
+# 0.18.0
+
+Bounded server-side license/reserve/installation-choice pages with deterministic keyset
+ordering, authenticated query/revision/time-bound continuations, coherent counts and
+one-license detail lookup. Preserve legacy API compatibility. The owner React console
+no longer downloads the entire database or truncates reserve history at 200 entries;
+stale cursors reset visibly without hiding errors or keeping idle sessions alive.
+Add 12 C# groups, 10 Node tests and a cross-version response/allocation benchmark.
+Run every frontend test file without shell-dependent wildcard expansion.
+See docs/RELEASE_NOTES_0.18.0_RU.md; target SDK and gameplay remain separate gates.
+
 # 0.17.0
 
 Durable offline expiry/rollback denials; atomic retirement of reserve grants on device reset;

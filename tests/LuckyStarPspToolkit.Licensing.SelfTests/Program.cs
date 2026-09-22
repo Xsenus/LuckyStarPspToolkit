@@ -94,6 +94,18 @@ internal static class LicensingTests
             Test("reserve/session regression SessionRevokeOthers", ReserveSafetyTests.SessionRevokeOthers);
             Test("reserve/session regression SessionRevokeGuards", ReserveSafetyTests.SessionRevokeGuards);
             Test("reserve/session regression SessionInventoryExpiration", ReserveSafetyTests.SessionInventoryExpiration);
+            Test("owner query CompleteTraversal", OwnerQueryTests.CompleteTraversal);
+            Test("owner query FiltersAndCounts", OwnerQueryTests.FiltersAndCounts);
+            Test("owner query EmptyPages", OwnerQueryTests.EmptyPages);
+            Test("owner query InvalidQueries", OwnerQueryTests.InvalidQueries);
+            Test("owner query CursorBindings", OwnerQueryTests.CursorBindings);
+            Test("owner query ChangedRevision", OwnerQueryTests.ChangedRevision);
+            Test("owner query CursorDeadline", OwnerQueryTests.CursorDeadline);
+            Test("owner query RestartInvalidatesCursor", OwnerQueryTests.RestartInvalidatesCursor);
+            Test("owner query ExpirySnapshot", OwnerQueryTests.ExpirySnapshot);
+            Test("owner query ProjectionPrivacy", OwnerQueryTests.ProjectionPrivacy);
+            Test("owner query ReserveTraversal", OwnerQueryTests.ReserveTraversal);
+            Test("owner query ReserveEligibility", OwnerQueryTests.ReserveEligibility);
             Test("reserve/web DefaultOff", WebReserveTests.DefaultOff);
             Test("reserve/web ActivationRequired", WebReserveTests.ActivationRequired);
             Test("reserve/web HourBounds", WebReserveTests.HourBounds);

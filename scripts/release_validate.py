@@ -83,7 +83,7 @@ def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
         run(name, [sys.executable, *args])
     node = shutil.which('node')
     if node:
-        run('react-model-tests', [node, '--test', 'web/license-admin/tests/model.test.mjs'])
+        run('react-model-tests', [node, 'web/license-admin/test.mjs'])
         run('react-vendor-integrity-and-build', [node, 'web/license-admin/build.mjs'])
     else:
         skip('react-build', 'Node.js is not installed.')

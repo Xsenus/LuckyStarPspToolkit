@@ -294,12 +294,52 @@ def main() -> int:
             page.get_by_role('button', name='Обновить', exact=True).click()
             expect(page.locator('.badge.active')).to_be_visible(timeout=15000)
             page.screenshot(path=str(out / 'admin-licenses.png'), full_page=True)
+            # This non-mutating path must still require the existing session and CSRF token.
+            anonymous = urllib.request.Request(origin + '/api/licenses/query', method='POST', headers={'Origin': origin, 'Content-Type': 'application/json'}, data=b'{}')
+            try:
+                urllib.request.urlopen(anonymous, timeout=15)
+                raise AssertionError('Anonymous owner query was authorized')
+            except urllib.error.HTTPError as denial:
+                assert denial.code == 401
+            no_csrf = page.evaluate("""async()=> (await fetch('/api/licenses/query',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status""")
+            assert no_csrf == 403
+            record('owner-page-api-requires-session-and-csrf')
+            def issue_batch(count: int, start: int = 0) -> None:
+                """Seed disposable owner trials through the actual authenticated API, never by editing its database."""
+                values = [{'id':str(uuid.uuid4()),'accessKey':'LSP-'+secrets.token_urlsafe(32),'label':f'Проверка страницы {i:03d}',
+                           'unit':'days','amount':7,'starts':'activation','maxDevices':1} for i in range(start, start+count)]
+                sensitive.extend(x['accessKey'] for x in values)
+                result = page.evaluate("""async(values)=>{const session=await (await fetch('/api/session')).json();for(const value of values){const r=await fetch('/api/issue',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':session.csrfToken},body:JSON.stringify(value)});if(!r.ok)return r.status;}return 200;}""",values)
+                assert result == 200
+            issue_batch(55)
+            page.get_by_role('button', name='Обновить', exact=True).click()
+            expect(page.locator('tbody tr')).to_have_count(25, timeout=15000)
+            expect(page.locator('.stat').first.locator('strong')).to_have_text('56')
+            page.get_by_role('button', name='Далее', exact=True).click()
+            expect(page.get_by_text('Страница 2 · Найдено 56', exact=True)).to_be_visible()
+            issue_batch(1, 55)
+            page.get_by_role('button', name='Далее', exact=True).click()
+            expect(page.get_by_text('Данные изменились или срок страницы истёк. Открыта первая страница.', exact=True)).to_be_visible()
+            expect(page.get_by_text('Страница 1 · Найдено 57', exact=True)).to_be_visible()
+            page.get_by_label('Поиск по клиенту или ID').fill('страницы 051')
+            page.get_by_role('button', name='Применить фильтры', exact=True).click()
+            expect(page.locator('tbody tr')).to_have_count(1)
+            expect(page.locator('tbody tr')).to_contain_text('051')
+            page.get_by_role('button', name='Открыть', exact=True).click()
+            expect(page.get_by_role('heading', name='Проверка страницы 051', exact=True)).to_be_visible()
+            page.get_by_label('Поиск по клиенту или ID').fill('')
+            page.get_by_role('button', name='Применить фильтры', exact=True).click()
+            expect(page.locator('tbody tr')).to_have_count(25)
+            page.screenshot(path=str(out / 'admin-pagination.png'), full_page=True)
+            record('real-owner-pages-global-counts-search-details-and-stale-recovery')
             page.get_by_role('button', name='Резервный доступ', exact=True).click()
             page.get_by_role('button', name='Включить резервную систему', exact=True).click()
             expect(page.get_by_text('Выдача включена', exact=True)).to_be_visible(timeout=15000)
             page.get_by_label('Лицензия (из загруженного списка)').select_option(receipt['id'])
+            expect(page.get_by_label('Установка', exact=True).locator('option')).to_have_count(2, timeout=15000)
             device = page.get_by_label('Установка', exact=True).locator('option').nth(1).get_attribute('value')
             assert device is not None
+            expect(page.get_by_label('Установка', exact=True).locator('option')).to_have_count(2, timeout=15000)
             page.get_by_label('Установка', exact=True).select_option(device)
             page.get_by_role('button', name='Выдать резервный допуск', exact=True).click()
             expect(page.get_by_test_id('reserve-command')).to_be_visible(timeout=15000)
@@ -331,9 +371,10 @@ def main() -> int:
             page.get_by_role('button', name='Резервный доступ', exact=True).click()
             page.get_by_role('button', name='Включить резервную систему', exact=True).click()
             expect(page.get_by_text('Выдача включена', exact=True)).to_be_visible(timeout=15000)
-            expect(page.get_by_text('Старое поколение', exact=True)).to_be_visible()
+            expect(page.get_by_text('Поколение отключено', exact=True)).to_be_visible()
             run('old-grant-not-resurrected', [*cmd('lsptool', True), 'license', 'reserve-enable', '--id', grant_id], 77)
             page.get_by_label('Лицензия (из загруженного списка)').select_option(receipt['id'])
+            expect(page.get_by_label('Установка', exact=True).locator('option')).to_have_count(2, timeout=15000)
             page.get_by_label('Установка', exact=True).select_option(device)
             page.get_by_label('Окно без обновления, часы').fill('24')
             page.get_by_role('button', name='Выдать резервный допуск', exact=True).click()

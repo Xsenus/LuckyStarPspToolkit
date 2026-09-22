@@ -32,7 +32,7 @@ def publish_owner(rids: list[str], dotnet: str) -> Path:
         if node is None:
             raise BuildError("Node.js 22+ is required to build the owner React console")
         frontend = ROOT / "web/license-admin"
-        runner.run("react-tests", [node, "--test", str(frontend / "tests/model.test.mjs")])
+        runner.run("react-tests", [node, str(frontend / "test.mjs")])
         runner.run("react-build", [node, str(frontend / "build.mjs")])
         temporary.mkdir(parents=True)
         for rid in rids:

@@ -1,6 +1,6 @@
 {
   "name": "lsp-license-admin",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node test.mjs"
   },
   "description": "React owner console. Locked vendored official CI browser modules, offline build with Node built-ins only."
 }

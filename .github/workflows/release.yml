@@ -49,7 +49,7 @@ jobs:
           node-version: '22'
       - name: Validate and build pinned React owner console
         run: |
-          node --test web/license-admin/tests/model.test.mjs
+          node web/license-admin/test.mjs
           node web/license-admin/build.mjs
       - uses: actions/setup-dotnet@v4
         with:

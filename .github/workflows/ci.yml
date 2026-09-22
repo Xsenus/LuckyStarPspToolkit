@@ -37,7 +37,7 @@ jobs:
           node-version: '22'
       - name: Validate and build pinned React owner console
         run: |
-          node --test web/license-admin/tests/model.test.mjs
+          node web/license-admin/test.mjs
           node web/license-admin/build.mjs
       - uses: actions/setup-dotnet@v4
         with:
@@ -83,7 +83,7 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Build actual browser and backend
         run: |
-          node --test web/license-admin/tests/model.test.mjs
+          node web/license-admin/test.mjs
           node web/license-admin/build.mjs
           dotnet build LuckyStarPspToolkit.sln -c Release --nologo
       - name: Native browser transport, MFA and reserve lifecycle

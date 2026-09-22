@@ -356,9 +356,7 @@ public sealed partial class LicenseAuthority : IDisposable
     /// <returns>Non-secret view with effective status.</returns>
     private static LicenseOverview Overview(LicenseRecord record, long now)
     {
-        string status = record.Status;
-        if (status == "active") status = record.ExpiresAt.HasValue && now >= record.ExpiresAt.Value ? "expired"
-            : record.Starts == "activation" && record.ActivatedAt is null ? "pending" : "active";
+        string status = EffectiveStatus(record, now);
         return new(record.Id, record.Label, status, record.CreatedAt, record.ActivatedAt, record.ExpiresAt,
             record.Unit == "permanent", record.MaxDevices, record.Devices.Values.OrderBy(x => x.Id, StringComparer.Ordinal).ToArray());
     }
@@ -387,5 +385,5 @@ public sealed partial class LicenseAuthority : IDisposable
     }
 
     /// <summary>Closes the store and clears private-key handles after all HTTP requests have stopped.</summary>
-    public void Dispose() { lock (sync) { checkpoint.Dispose(); store.Dispose(); signer.Dispose(); } }
+    public void Dispose() { lock (sync) { checkpoint.Dispose(); store.Dispose(); signer.Dispose(); CryptographicOperations.ZeroMemory(ownerCursorKey); } }
 }
