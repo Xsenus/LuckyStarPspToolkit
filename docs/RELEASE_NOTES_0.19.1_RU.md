@@ -30,8 +30,20 @@ Patch-релиз от 22.09.2026 основан на 0.19.0. Схема лице
 Formats **54/54**, Licensing **146/146**. Frontend — **38/38** Node-тестов и сборка.
 Native Chromium без diagnostic bridge прошёл **32 шага**, включая выдачу и
 скачивание ключа, активацию CLI, MFA, сессии, страницы и поиск, reserve lifecycle,
-CSRF/replay отказы и мобильный экран. Производственные HTTPS и VPS проверяются
-отдельным развёртыванием, а не этим локальным HTTP-сценарием.
+CSRF/replay отказы и мобильный экран. Отдельно прошли production HTTPS и 12 web/API
+проверок на установленном VPS, визуальная проверка страницы входа и staging dry-run
+продления сертификата; прежние сайты сохранили хэши ответов.
+
+Выпущенный Windows-клиент прошёл production HTTPS activation/status, native
+self-test и полный licensed synthetic demo. До активации и после отзыва ключа
+получен ожидаемый отказ 77. После рестарта authority лицензия сохранилась и
+11 web/API проверок прошли; сделана согласованная копия остановленной базы.
+
+Полный локальный .NET 9 конвейер прошёл 21/21 этапов; owner server/admin пакеты
+для Windows/Linux собраны. Все три job Windows/Linux/Chromium для `85fea39`
+завершились [успешно](https://github.com/Xsenus/LuckyStarPspToolkit/actions/runs/35715010894).
+Точная область и ещё не выполненные проверки перечислены в
+[отчёте 0.19.1](VERIFICATION_0.19.1_RU.md).
 
 Независимые Python validators проверили синтетические шрифт, ISO и ISO rebuild;
 CRILAYLA дополнительно проверен на потоке 256 MiB и предельных ссылках.

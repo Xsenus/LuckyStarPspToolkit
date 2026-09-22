@@ -1,8 +1,12 @@
-# React-панель владельца · 0.19.0
+# React-панель владельца · 0.19.1
 
-Это owner-only компонент. Заказчик получает только клиентский ZIP и ключ, но не исходники,
-сервер, админку, каталог authority, MFA enrollment или Git bundle. Развёртывание предполагается
-в приватном репозитории. Ключи доступа, исходные игры и шрифты в поставке отсутствуют.
+Панель предназначена для владельца сервера. Исходный код открыт, а рабочие authority,
+owner-token, пароль и MFA enrollment остаются закрытыми. Клиенту для работы нужны
+клиентский ZIP и отдельный ключ. Оригинальные игры, перевод и шрифты не публикуются.
+
+Текущий production origin: [https://lspt.blagodaty.online](https://lspt.blagodaty.online).
+Установка и обслуживание именно этого VPS: [VPS_DEPLOYMENT_RU.md](VPS_DEPLOYMENT_RU.md);
+подтверждённые проверки: [VERIFICATION_0.19.1_RU.md](VERIFICATION_0.19.1_RU.md).
 
 ## Возможности
 
@@ -20,7 +24,7 @@
 ## Сборка владельцем
 
 Нужны .NET 9 SDK, Python 3.11+ с validation/requirements.txt и Node.js 22+.
-Из папки project:
+Из корня checkout (папки project в исходном архиве):
 
 ```powershell
 py -3 -m pip install -r validation/requirements.txt
@@ -30,7 +34,7 @@ node web/license-admin/build.mjs
 py -3 scripts/build_license_owner.py --rids linux-x64,win-x64
 ```
 
-При успехе owner ZIP находится в `artifacts/owner-releases/0.19.0/`.
+При успехе owner ZIP находится в `artifacts/owner-releases/0.19.1/`.
 Внутри каждой платформы `server/`, `admin/`, `web/`, `docs/`, `deploy/`.
 Frontend использует закреплённые MIT production-модули React с проверкой SHA-256;
 Node нужен при сборке, но **не при работе** сервера. CDN, npm install и Vite runtime не нужны.
@@ -48,6 +52,10 @@ Node нужен при сборке, но **не при работе** серв�
 ## Новый сервер или обновление
 
 Для нового сервера сначала выполните обычный `init` из LICENSE_OWNER_RU.md.
+Для обновления действующей 0.19.0 до 0.19.1 не нужны ни `init`, ни `web-init`,
+ни смена схемы: сохраните issuer/account и замените согласованные server/admin/web.
+На уже настроенном VPS следуйте версионным путям из VPS_DEPLOYMENT_RU.md.
+Следующий абзац описывает только исторический переход с 0.15.0:
 Для уже работающего 0.15.0 новый `init` **не выполняйте**: issuer, ключи и лицензии сохраняются.
 Остановите службу и сделайте закрытую согласованную копию authority и отдельно master.pass.
 Схема базы автоматически меняется с 2 на 3. `server-clock.json` остаётся обязательным.
@@ -93,17 +101,23 @@ sudo -u lsptool-license /opt/lsptool-license/admin/lsp-license-admin web-init \
 | 17841 | Старое административное bearer API | **Не публиковать**; SSH-туннель владельца |
 | 17842 | Browser backend с cookie/MFA/CSRF | HTTPS admin.example.com |
 
-Существующий deploy/licensing/nginx.conf обслуживает клиентский API.
+Для одного домена клиентского API и панели используйте `deploy/licensing/nginx-combined.conf`;
+он применяется на текущем VPS. Для двух доменов можно выбрать альтернативу:
+существующий deploy/licensing/nginx.conf обслуживает клиентский API.
 Для панели установите отдельный deploy/licensing/nginx-admin.conf в nginx http context,
 а deploy/licensing/lsp-admin-proxy.conf — в `/etc/nginx/snippets/lsp-admin-proxy.conf`.
-Замените домен и пути **существующих действительных TLS-сертификатов**. Не открывайте 17840–17842
+Combined-конфигурацию и пару раздельных конфигураций не устанавливайте одновременно
+для одного origin. Замените домен и пути **существующих действительных TLS-сертификатов**. Не открывайте 17840–17842
 через firewall. Snippet обязан перезаписывать X-Real-IP, не доверять его значению от внешнего клиента.
 
 В ExecStart существующей службы добавьте:
 
 ```text
---web-root /opt/lsptool-license/web --web-port 17842
+--web-root /opt/lsptool-license/releases/0.19.1/web --web-port 17842
 ```
+
+Путь `--web-root` должен быть физическим каталогом; symlink `current` отклоняется
+проверкой безопасного пути. В новой установке укажите свой реальный каталог релиза.
 
 Порядок завершения настройки:
 
@@ -115,7 +129,8 @@ sudo systemctl reload nginx
 sudo systemctl status lsptool-license --no-pager
 ```
 
-Адрес входа после настройки: `https://admin.example.com`. Не используйте localhost или IP вместо
+Для раздельного example-развёртывания адрес входа: `https://admin.example.com`;
+в текущей установке — `https://lspt.blagodaty.online`. Не используйте localhost или IP вместо
 заданного production-origin; Secure cookie/Origin тогда намеренно не работают.
 Не включайте --development-loopback на production. Этот режим только для явно локальных тестов.
 
@@ -161,7 +176,11 @@ server-clock.json, signing key или установки клиентов. Ст�
 
 Проверьте production HTTPS, cookie Secure/HttpOnly/SameSite в браузере, блокировку запросов без CSRF,
 выход/истечение сессии, вход с новым TOTP, одноразовость recovery и обновление сервера с сохранением
-лицензий. Реальный VPS/DNS/TLS и Windows CNG здесь не развёрнуты за владельца.
+лицензий. Выполненные проверки текущего VPS и Windows-клиента перечислены в
+[отчёте 0.19.1](VERIFICATION_0.19.1_RU.md). Полный набор сценариев MFA, recovery,
+истечения сессий и сохранения состояния проверен в локальной интеграции;
+он не объявляется целиком повторённым на production.
+При переносе на другой домен/сервер повторите приёмку.
 
 ## Изменения 0.19.0
 

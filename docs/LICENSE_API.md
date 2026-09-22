@@ -6,7 +6,8 @@ All request JSON is camel-case, case-sensitive, rejects duplicate/unknown fields
 Since 0.15, non-optional constructor fields must be present and non-nullable fields cannot be null.
 Explicitly nullable fields and optional defaults keep their documented meaning. This is independent
 of the private database schema migration.
-Only the public protocol is exposed through HTTPS. No caller-supplied path, algorithm or private issuer key is accepted.
+The public license protocol and the separate cookie/MFA browser API can be exposed through HTTPS.
+The bearer admin listener remains loopback-only. No caller-supplied path, algorithm or private issuer key is accepted.
 
 | Listener | Method/path | Authentication |
 |---|---|---|
@@ -56,7 +57,8 @@ HTTP 408/429/500/502/503/504 are transient even if a proxy returns no JSON or an
 They never grant access, extend a previous lease, or allow a fresh command offline. A malformed
 HTTP 200 body remains a protocol failure. HTTP errors/network loss never extend a previous grant. Other explicit denials terminate the session.
 Administrative tokens and access keys must not appear in URL query strings or request logs.
-No CORS/browser integration or multi-tenant product administration is implemented.
+Cross-origin CORS access and multi-tenant product administration are not implemented.
+The owner console uses the same-origin cookie/MFA API, separate from bearer admin routes.
 
 ## Additions in 0.16.0
 

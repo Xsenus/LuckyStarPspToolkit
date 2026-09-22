@@ -58,4 +58,5 @@
 
 Только по отдельному разрешению владельца: `lsptool license reserve-enable --id UUID`.
 Выполните онлайн. Это полный доступ в рамках продукта, максимум 168 часов без обновления и не дольше
-основной лицензии. `license reserve-disable` возвращает обычный онлайн-режим. Подробнее — RESERVE_ACCESS_RU.md.
+основной лицензии. `license reserve-disable` возвращает обычный онлайн-режим.
+Подробнее — [руководство резерва](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/RESERVE_ACCESS_RU.md).

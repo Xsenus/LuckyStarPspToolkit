@@ -44,6 +44,8 @@
 
 ## Проверки, история и происхождение
 
+- [Свежий отчёт 0.19.1](VERIFICATION_0.19.1_RU.md) содержит результаты штатной сборки,
+  Windows/Linux/Chromium CI и production HTTPS.
 - [Матрица текущей приёмки](CUSTOMER_ACCEPTANCE_RU.md) отделяет свежие проверки
   от отсутствующих игровых данных и условий, которые ещё нужно проверить.
 - [Отчёт исходного комплекта](TEST_REPORT_RU.md) и [validation](../validation/README.md)

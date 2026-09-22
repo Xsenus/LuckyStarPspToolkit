@@ -17,8 +17,12 @@
 [Клиент](docs/LICENSE_CUSTOMER_RU.md) · [Миграция](docs/LICENSE_MIGRATION_RU.md)
 
 В 0.19.1 исправлены ошибки, найденные при штатной сборке .NET 9 на Windows.
-Текущие фактические результаты проверок клиента, админки и развёртывания
-сведены в [матрицу приёмки](docs/CUSTOMER_ACCEPTANCE_RU.md).
+Штатная сборка и три GitHub job Windows/Linux/Chromium прошли; админка развёрнута
+на [lspt.blagodaty.online](https://lspt.blagodaty.online) с проверенным HTTPS.
+Выпущенный Windows-клиент прошёл активацию, self-test, synthetic demo и блокировку
+после отзыва; лицензия сохранилась при перезапуске сервера.
+Фактические результаты и оставшиеся проверки: [отчёт 0.19.1](docs/VERIFICATION_0.19.1_RU.md)
+и [матрица приёмки](docs/CUSTOMER_ACCEPTANCE_RU.md).
 Отчёты исходного комплекта 0.19.0 про Roslyn/.NET 11 preview сохранены как история.
 Оригинальные игровые ресурсы и файлы шрифтов в исходники не включены.
 
