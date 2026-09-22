@@ -72,8 +72,8 @@ public sealed record LicenseRecord(string Id, string KeyDigest, string IssueDige
 /// <param name="DeviceId">Affected installation, if any.</param>
 public sealed record LicenseAudit(long At, string Action, string LicenseId, string DeviceId);
 
-/// <summary>Authenticated single-writer snapshot. Periodic lease checks are read-only and do not rewrite this database.</summary>
-/// <param name="Schema">Version one.</param>
+/// <summary>Authenticated single-writer snapshot. Periodic lease checks do not rewrite entitlements; a separate small server-time checkpoint protects restarts.</summary>
+/// <param name="Schema">One for legacy stores; two makes the authenticated server-clock checkpoint mandatory.</param>
 /// <param name="Issuer">Authority owning the database.</param>
 /// <param name="Revision">Monotonically increasing committed write number.</param>
 /// <param name="LastWriteUtc">Last commit time, guarding accidental backward-clock startup.</param>

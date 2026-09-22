@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0 — 2026-09-22
+
+Fix forward/rollback clock freeze and persist authenticated restart watermarks; migrate
+legacy stores without resetting keys or entitlement dates. Detach public read/transaction
+snapshots; replace JSON cloning with explicit collection copies and validate committed
+state. Reject missing/non-nullable protocol fields. Treat proxy overloads as transient
+without extending signed leases. Add 21 executed regression groups, six cross-version
+probes and identical-data allocation benchmarks. See docs/RELEASE_NOTES_0.15.0_RU.md.
+
 ## 0.14.0
 
 Online owner-controlled licensing, signed short leases, device limits, timed/perpetual entitlements, revocation, owner CLI/server and fail-closed customer distribution. See docs/RELEASE_NOTES_0.14.0_RU.md.

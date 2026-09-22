@@ -64,6 +64,11 @@ public sealed class LicenseTransport : IDisposable
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
             timeout.CancelAfter(TimeSpan.FromSeconds(8));
             using HttpResponseMessage response = await http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
+            // A TLS proxy or the bounded listener may return an empty/HTML overload response.
+            // Classify it before JSON parsing. This never grants access or extends the old deadline.
+            if ((int)response.StatusCode is 408 or 429 or 500 or 502 or 503 or 504)
+                throw new LicenseException(response.StatusCode == HttpStatusCode.TooManyRequests ? "RATE_LIMIT" : "SERVER_BUSY",
+                    "The licensing service is temporarily unavailable. No new execution permission was granted.");
             if (response.Content.Headers.ContentLength > 32768) throw new LicenseException("SERVER_RESPONSE", "License response exceeds its size limit.");
             if (response.Content.Headers.ContentType?.MediaType != "application/json")
                 throw new LicenseException("SERVER_RESPONSE", "The licensing service did not return JSON.");

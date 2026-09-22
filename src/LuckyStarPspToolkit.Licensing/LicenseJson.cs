@@ -13,6 +13,8 @@ public static class LicenseJson
         PropertyNameCaseInsensitive = false,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         MaxDepth = 24,
+        RespectRequiredConstructorParameters = true,
+        RespectNullableAnnotations = true,
         WriteIndented = false
     };
 

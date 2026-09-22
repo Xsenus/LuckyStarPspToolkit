@@ -3,6 +3,9 @@
 This is a fixed online authorization protocol, not an arbitrary JWT authentication service.
 See C# XML documentation and `LuckyStarPspToolkit.Licensing/Contracts.cs` for exact models.
 All request JSON is camel-case, case-sensitive, rejects duplicate/unknown fields and numeric strings.
+Since 0.15, non-optional constructor fields must be present and non-nullable fields cannot be null.
+Explicitly nullable fields and optional defaults keep their documented meaning. This is independent
+of the private database schema migration.
 Only the public protocol is exposed through HTTPS. No caller-supplied path, algorithm or private issuer key is accepted.
 
 | Listener | Method/path | Authentication |
@@ -49,6 +52,8 @@ Irreversible revoke cannot be reset by another action. A retried extension reque
 
 Errors have `code` and sanitized `message`. Input/path/method errors do not return stack traces.
 Responses disable caching. Clients refuse success bodies with untrusted signatures or inconsistent claims.
-HTTP 429/503/network loss never extend a previous grant. Other explicit denials terminate the session.
+HTTP 408/429/500/502/503/504 are transient even if a proxy returns no JSON or an HTML body.
+They never grant access, extend a previous lease, or allow a fresh command offline. A malformed
+HTTP 200 body remains a protocol failure. HTTP errors/network loss never extend a previous grant. Other explicit denials terminate the session.
 Administrative tokens and access keys must not appear in URL query strings or request logs.
 No CORS/browser integration or multi-tenant product administration is implemented.

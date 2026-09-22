@@ -13,6 +13,8 @@ public sealed class LicenseAuthority : IDisposable
     private readonly LicenseStore store;
     /// <summary>Nondecreasing server timeline.</summary>
     private readonly AuthorityClock clock;
+    /// <summary>Authenticated restart watermark, written before timed access decisions.</summary>
+    private readonly AuthorityClockCheckpoint checkpoint;
     /// <summary>Authority private signer; serialized through sync because provider handles are not assumed thread-safe.</summary>
     private readonly ECDsa signer;
     /// <summary>Validated private authority settings.</summary>
@@ -38,20 +40,23 @@ public sealed class LicenseAuthority : IDisposable
         clock = new AuthorityClock(time ?? TimeProvider.System);
         signer = ECDsa.Create();
         byte[] encrypted = Convert.FromBase64String(config.EncryptedPkcs8);
+        LicenseStore? openedStore = null;
+        AuthorityClockCheckpoint? openedCheckpoint = null;
         try
         {
             signer.ImportEncryptedPkcs8PrivateKey(password, encrypted, out int used);
             if (used != encrypted.Length || Convert.ToBase64String(signer.ExportSubjectPublicKeyInfo()) != config.PublicKey)
                 throw new LicenseException("AUTHORITY_KEY", "Authority keys do not match.");
-            store = new LicenseStore(directory, config);
-            if (clock.Now() + 5 < store.Read(db => db.LastWriteUtc))
-            {
-                store.Dispose();
-                throw new LicenseException("SERVER_CLOCK_ROLLBACK", "Server UTC predates the last committed license state.");
-            }
-            keyIndex = store.Read(db => db.Licenses.Values.ToDictionary(x => x.KeyDigest, x => x.Id, StringComparer.Ordinal));
+            openedStore = new LicenseStore(directory, config);
+            long now = clock.Now();
+            var metadata = openedStore.ReadCommitted(db => (db.Schema, db.LastWriteUtc));
+            openedCheckpoint = new AuthorityClockCheckpoint(directory, config, metadata.Schema == 2, metadata.LastWriteUtc, now);
+            openedStore.RequireClockCheckpoint(now);
+            store = openedStore;
+            checkpoint = openedCheckpoint;
+            keyIndex = store.ReadCommitted(db => db.Licenses.Values.ToDictionary(x => x.KeyDigest, x => x.Id, StringComparer.Ordinal));
         }
-        catch { signer.Dispose(); throw; }
+        catch { openedCheckpoint?.Dispose(); openedStore?.Dispose(); signer.Dispose(); throw; }
     }
 
     /// <summary>Initializes new owner-only secrets, database, admin connection and public build profile without overwriting any previous authority.</summary>
@@ -110,7 +115,7 @@ public sealed class LicenseAuthority : IDisposable
         LicenseCrypto.ValidateDigest(request.HostBinding);
         lock (sync)
         {
-            long now = clock.Now();
+            long now = Now();
             while (challengeExpiry.TryPeek(out _, out long deadline) && deadline <= now)
                 challenges.Remove(challengeExpiry.Dequeue());
             if (challengeExpiry.Count >= 8192)
@@ -140,14 +145,14 @@ public sealed class LicenseAuthority : IDisposable
         string deviceId = LicenseCrypto.DeviceId(request.DevicePublicKey);
         lock (sync)
         {
-            long now = clock.Now();
+            long now = Now();
             if (!challenges.Remove(request.Challenge, out Challenge? challenge) || challenge.Until <= now ||
                 challenge.Binding != new ChallengeRequest(request.ProductId, request.Action, request.DevicePublicKey, request.HostBinding))
                 throw new LicenseException("CHALLENGE_INVALID", "The challenge is missing, expired, consumed or bound to another installation.");
             string licenseId = request.LicenseId;
             if (request.Action == "activate" && !keyIndex.TryGetValue(store.KeyDigest(request.AccessKey), out licenseId!))
                 throw new LicenseException("LICENSE_INVALID", "The access key is not valid.");
-            LicenseRecord license = store.Read(db => db.Licenses.TryGetValue(licenseId, out var item) ? item :
+            LicenseRecord license = store.ReadCommitted(db => db.Licenses.TryGetValue(licenseId, out var item) ? item :
                 throw new LicenseException("LICENSE_INVALID", "License not found."));
             RequireActive(license, now);
             if (request.Action == "activate")
@@ -200,8 +205,8 @@ public sealed class LicenseAuthority : IDisposable
         string fingerprint = LicenseCrypto.Digest(LicenseJson.Write(request with { AccessKey = keyDigest }));
         lock (sync)
         {
-            long now = clock.Now();
-            LicenseRecord? prior = store.Read(db => db.Licenses.GetValueOrDefault(request.Id));
+            long now = Now();
+            LicenseRecord? prior = store.ReadCommitted(db => db.Licenses.GetValueOrDefault(request.Id));
             if (prior is not null)
             {
                 if (prior.IssueDigest != fingerprint) throw new LicenseException("IDEMPOTENCY_CONFLICT", "Issuance ID was already used for another request.");
@@ -239,8 +244,8 @@ public sealed class LicenseAuthority : IDisposable
         string fingerprint = LicenseCrypto.Digest(LicenseJson.Write(request));
         lock (sync)
         {
-            long now = clock.Now();
-            string? prior = store.Read(db => db.Requests.GetValueOrDefault(request.RequestId));
+            long now = Now();
+            string? prior = store.ReadCommitted(db => db.Requests.GetValueOrDefault(request.RequestId));
             if (prior is not null)
             {
                 if (prior != fingerprint) throw new LicenseException("IDEMPOTENCY_CONFLICT", "Mutation ID was reused with different parameters.");
@@ -288,17 +293,26 @@ public sealed class LicenseAuthority : IDisposable
 
     /// <summary>Returns a bounded administrative listing without raw credentials.</summary>
     /// <returns>Current overviews ordered by issue time then ID.</returns>
-    public LicenseOverview[] List() => store.Read(db => db.Licenses.Values.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id, StringComparer.Ordinal).Select(x => Overview(x, clock.Now())).ToArray());
+    public LicenseOverview[] List()
+    {
+        long now = Now();
+        return store.ReadCommitted(db => db.Licenses.Values.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id, StringComparer.Ordinal)
+            .Select(x => Overview(x, now)).ToArray());
+    }
 
-    /// <summary>Returns one non-secret overview.</summary>
+    /// <summary>Returns one non-secret overview using one durable timestamp for the decision.</summary>
     /// <param name="id">License UUID.</param>
     /// <returns>Current entitlement state.</returns>
-    public LicenseOverview Get(string id) => store.Read(db => db.Licenses.TryGetValue(id, out var record)
-        ? Overview(record, clock.Now()) : throw new LicenseException("LICENSE_INVALID", "License not found."));
+    public LicenseOverview Get(string id)
+    {
+        long now = Now();
+        return store.ReadCommitted(db => db.Licenses.TryGetValue(id, out var record)
+            ? Overview(record, now) : throw new LicenseException("LICENSE_INVALID", "License not found."));
+    }
 
     /// <summary>Exports the owner audit trail; reads never include credentials or private key material.</summary>
     /// <returns>Detached audit array.</returns>
-    public LicenseAudit[] Audit() => store.Read(db => db.Audit.ToArray());
+    public LicenseAudit[] Audit() => store.ReadCommitted(db => db.Audit.ToArray());
 
     /// <summary>Computes an owner overview without mutating authoritative state.</summary>
     /// <param name="record">Committed entitlement.</param>
@@ -323,6 +337,19 @@ public sealed class LicenseAuthority : IDisposable
         if (record.ExpiresAt.HasValue && now >= record.ExpiresAt.Value) throw new LicenseException("LICENSE_EXPIRED", "The license has expired.");
     }
 
+    /// <summary>Advances and persists the authoritative timeline before any license decision is returned.</summary>
+    /// <returns>UTC seconds protected against both live rollback and a restart behind the last observed time.</returns>
+    private long Now()
+    {
+        // Ordering matters: concurrent public queries must not persist an older observation after a newer one.
+        lock (sync)
+        {
+            long now = clock.Now();
+            checkpoint.Observe(now);
+            return now;
+        }
+    }
+
     /// <summary>Closes the store and clears private-key handles after all HTTP requests have stopped.</summary>
-    public void Dispose() { store.Dispose(); signer.Dispose(); }
+    public void Dispose() { lock (sync) { checkpoint.Dispose(); store.Dispose(); signer.Dispose(); } }
 }

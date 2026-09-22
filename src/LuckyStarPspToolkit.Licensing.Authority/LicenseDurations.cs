@@ -42,37 +42,53 @@ public static class LicenseDurations
     }
 }
 
-/// <summary>Server clock anchored to monotonic elapsed time; a wall-clock rollback cannot lengthen a running license.</summary>
+/// <summary>Server timeline that re-anchors on forward wall-clock corrections and continues advancing during rollback.</summary>
 public sealed class AuthorityClock
 {
-    /// <summary>Underlying system or deterministic test clock.</summary>
+    /// <summary>Time source; timestamps and UTC are sampled under the same timeline lock.</summary>
     private readonly TimeProvider provider;
-    /// <summary>UTC anchor at process startup.</summary>
-    private readonly DateTimeOffset start;
-    /// <summary>Monotonic timestamp at startup.</summary>
-    private readonly long timestamp;
-    /// <summary>Highest observed UTC second, protected by synchronization.</summary>
-    private long highest;
-    /// <summary>Serializes monotonic state updates.</summary>
+    /// <summary>Latest accepted instant with subsecond precision; never rounded between observations.</summary>
+    private DateTimeOffset anchor;
+    /// <summary>Timestamp corresponding to the accepted anchor.</summary>
+    private long timestamp;
+    /// <summary>Serializes updates so concurrent callers cannot reintroduce an older anchor.</summary>
     private readonly object sync = new();
 
-    /// <summary>Initializes the authoritative timeline.</summary>
-    /// <param name="provider">System time in production, controllable time in tests.</param>
+    /// <summary>Initializes UTC and monotonic anchors from one provider.</summary>
+    /// <param name="provider">System clock or a deterministic test source.</param>
     public AuthorityClock(TimeProvider provider)
     {
-        this.provider = provider; start = provider.GetUtcNow(); timestamp = provider.GetTimestamp();
-        highest = start.ToUnixTimeSeconds();
+        ArgumentNullException.ThrowIfNull(provider);
+        this.provider = provider;
+        timestamp = provider.GetTimestamp();
+        anchor = provider.GetUtcNow();
     }
 
-    /// <summary>Returns a nondecreasing UTC Unix second within the process.</summary>
-    /// <returns>Maximum of wall clock, monotonic timeline and previous observation.</returns>
+    /// <summary>Advances the accepted timeline by elapsed monotonic time, then incorporates forward UTC corrections.</summary>
+    /// <returns>Nondecreasing UTC seconds; subsecond progress is retained internally.</returns>
+    /// <exception cref="LicenseException">The time provider moves its timestamp backward or exceeds the calendar range.</exception>
     public long Now()
     {
         lock (sync)
         {
-            long mono = (start + provider.GetElapsedTime(timestamp)).ToUnixTimeSeconds();
-            highest = Math.Max(highest, Math.Max(mono, provider.GetUtcNow().ToUnixTimeSeconds()));
-            return highest;
+            long currentTimestamp = provider.GetTimestamp();
+            TimeSpan elapsed = provider.GetElapsedTime(timestamp, currentTimestamp);
+            if (elapsed < TimeSpan.Zero)
+                throw new LicenseException("SERVER_MONOTONIC_ROLLBACK", "Server monotonic time moved backward.");
+            try
+            {
+                DateTimeOffset monotonic = anchor + elapsed;
+                DateTimeOffset wall = provider.GetUtcNow();
+                // Re-anchoring preserves progress after a forward correction followed by rollback.
+                // Keeping full precision prevents frequent subsecond observations from freezing time.
+                anchor = wall > monotonic ? wall : monotonic;
+                timestamp = currentTimestamp;
+                return anchor.ToUnixTimeSeconds();
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                throw new LicenseException("SERVER_CLOCK_RANGE", "Server time exceeds the supported calendar range.");
+            }
         }
     }
 }

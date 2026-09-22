@@ -61,6 +61,27 @@ internal static class LicensingTests
             Test("actual loopback HTTP activation/check and owner isolation", HttpLifecycle);
             Test("watchdog expires even while renewal could block", WatchdogExpiry);
             Test("long-running session notices revocation", WatchdogRevocation);
+            Test("clock progresses after forward/backward correction", LicensingHardeningTests.ClockForwardBack);
+            Test("clock retains subsecond progress", LicensingHardeningTests.ClockSubseconds);
+            Test("clock agrees with 1024 deterministic adjustments", LicensingHardeningTests.ClockSequence);
+            Test("restart cannot revive expired license", LicensingHardeningTests.RestartCannotRevive);
+            Test("required checkpoint deletion blocks restart", LicensingHardeningTests.MissingCheckpoint);
+            Test("checkpoint tampering releases constructor lock", LicensingHardeningTests.CorruptCheckpoint);
+            Test("checkpoint coalesces same-second checks", LicensingHardeningTests.CheckpointWriteCoalescing);
+            Test("schema one upgrades without resetting entitlements", LicensingHardeningTests.LegacyMigration);
+            Test("concurrent clock queries preserve checkpoint", LicensingHardeningTests.ConcurrentClockReads);
+            Test("read snapshot cannot mutate committed collections", LicensingHardeningTests.ReadSnapshotIsolation);
+            Test("returned transaction cannot mutate committed collections", LicensingHardeningTests.ChangeSnapshotIsolation);
+            Test("failed nested mutation leaves memory and disk unchanged", LicensingHardeningTests.FailedMutationIsolation);
+            Test("failed store replacement preserves committed state", LicensingHardeningTests.CommitWriteFailure);
+            Test("failed clock checkpoint prevents new permission", LicensingHardeningTests.CheckpointWriteFailure);
+            Test("invalid nested record is refused before persistence", LicensingHardeningTests.InvalidSnapshotRefused);
+            Test("required JSON constructor fields are enforced", LicensingHardeningTests.MissingJsonMembers);
+            Test("nonnullable JSON fields reject null", LicensingHardeningTests.NullJsonMembers);
+            Test("optional JSON values remain compatible", LicensingHardeningTests.OptionalJsonMembers);
+            Test("HTTP proxy errors map to bounded retries", LicensingHardeningTests.ProxyTransientErrors);
+            Test("HTTP success still requires valid protocol", LicensingHardeningTests.ProxyInvalidSuccess);
+            Test("proxy overload cannot extend lease or revoke it early", LicensingHardeningTests.ProxySessionExpiry);
             Console.WriteLine($"LICENSING TESTS: {count} groups passed; native Windows CNG/TLS deployment are separate acceptance gates.");
             return 0;
         }

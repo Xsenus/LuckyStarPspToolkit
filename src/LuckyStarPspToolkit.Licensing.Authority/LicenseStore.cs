@@ -17,6 +17,8 @@ public sealed class LicenseStore : IDisposable
     private readonly object sync = new();
     /// <summary>Most recent authenticated committed state.</summary>
     private LicenseDatabase state;
+    /// <summary>Guards operations after the process lock and integrity secret have been released.</summary>
+    private bool disposed;
 
     /// <summary>Opens an existing database; missing/corrupt data is never silently reset.</summary>
     /// <param name="directory">Private authority directory.</param>
@@ -31,21 +33,12 @@ public sealed class LicenseStore : IDisposable
         {
             var envelope = LicenseJson.Read<DatabaseEnvelope>(PrivateFiles.Read(path, MaximumPayload * 2), MaximumPayload * 2);
             byte[] bytes = Convert.FromBase64String(envelope.Payload);
+            if (bytes.Length > MaximumPayload) throw new LicenseException("DATABASE_LIMIT", "License database payload exceeds its limit.");
             byte[] mac = Convert.FromHexString(envelope.Mac);
             if (envelope.Schema != 1 || mac.Length != 32 || !CryptographicOperations.FixedTimeEquals(mac, HMACSHA256.HashData(pepper, bytes)))
                 throw new LicenseException("DATABASE_INTEGRITY", "License database authentication failed.");
             state = LicenseJson.Read<LicenseDatabase>(bytes, MaximumPayload);
-            if (state.Schema != 1 || state.Issuer != configuration.Issuer || state.Revision < 0 ||
-                state.Licenses is null || state.Requests is null || state.Audit is null || state.Licenses.Count > 10000)
-                throw new LicenseException("DATABASE_INVALID", "Invalid license database schema.");
-            foreach (var pair in state.Licenses)
-            {
-                if (pair.Key != pair.Value.Id || !Guid.TryParseExact(pair.Key, "D", out _) ||
-                    pair.Value.Status is not ("active" or "suspended" or "revoked") || pair.Value.Devices is null ||
-                    pair.Value.MaxDevices is < 1 or > 100 || pair.Value.Devices.Count > pair.Value.MaxDevices)
-                    throw new LicenseException("DATABASE_INVALID", "Inconsistent entitlement record.");
-                LicenseCrypto.ValidateDigest(pair.Value.KeyDigest);
-            }
+            LicenseDatabaseSnapshot.Validate(state, configuration.Issuer);
         }
         catch { processLock.Dispose(); CryptographicOperations.ZeroMemory(pepper); throw; }
     }
@@ -67,33 +60,75 @@ public sealed class LicenseStore : IDisposable
         finally { CryptographicOperations.ZeroMemory(secret); }
     }
 
-    /// <summary>Runs a read while no writer can publish a new state. The callback must not mutate the snapshot.</summary>
+    /// <summary>Runs a caller-supplied query on an isolated snapshot; retained or mutated results cannot affect committed state.</summary>
     /// <typeparam name="T">Read result.</typeparam>
-    /// <param name="read">Pure reader.</param>
-    /// <returns>Reader result.</returns>
-    public T Read<T>(Func<LicenseDatabase, T> read) { lock (sync) return read(state); }
+    /// <param name="read">Reader over a detached copy; this public API has a copying cost proportional to database size.</param>
+    /// <returns>Caller result without exposing mutable committed collections.</returns>
+    public T Read<T>(Func<LicenseDatabase, T> read)
+    {
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            return read(LicenseDatabaseSnapshot.Copy(state));
+        }
+    }
 
-    /// <summary>Applies a mutation to a detached copy, flushes it before publication, and preserves old memory/disk state on failure.</summary>
+    /// <summary>Runs a trusted authority query without copying the database; the callback must not mutate or expose committed collections.</summary>
+    /// <typeparam name="T">Result restricted by the internal caller's contract.</typeparam>
+    /// <param name="read">Pure internal query.</param>
+    /// <returns>Internal result, consumed while the authority serializes entitlement operations.</returns>
+    internal T ReadCommitted<T>(Func<LicenseDatabase, T> read)
+    {
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            return read(state);
+        }
+    }
+
+    /// <summary>Applies a mutation to a detached snapshot and publishes a second isolated snapshot only after file replacement succeeds.</summary>
     /// <typeparam name="T">Transaction result.</typeparam>
-    /// <param name="now">Authoritative commit timestamp.</param>
-    /// <param name="change">Mutation of the detached snapshot.</param>
-    /// <returns>Result only after durable file flush and atomic replacement succeeded.</returns>
+    /// <param name="now">Authoritative timestamp, previously checkpointed by the authority.</param>
+    /// <param name="change">Mutation callback; retaining its snapshot or result cannot modify committed data afterwards.</param>
+    /// <returns>Result only after flush and replacement; failures preserve the prior memory/disk state.</returns>
     public T Change<T>(long now, Func<LicenseDatabase, T> change)
     {
         lock (sync)
         {
-            var copy = LicenseJson.Read<LicenseDatabase>(LicenseJson.Write(state), MaximumPayload);
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var copy = LicenseDatabaseSnapshot.Copy(state);
             T result = change(copy);
-            if (copy.Licenses.Count > 10000 || copy.Requests.Count > 100000 || copy.Audit.Count > 100000)
-                throw new LicenseException("DATABASE_LIMIT", "Authority capacity reached; archive and migrate before adding records.");
-            copy = copy with { Revision = checked(state.Revision + 1), LastWriteUtc = Math.Max(state.LastWriteUtc, now) };
-            byte[] payload = LicenseJson.Write(copy);
-            if (payload.Length > MaximumPayload) throw new LicenseException("DATABASE_LIMIT", "License database size limit reached.");
-            var envelope = new DatabaseEnvelope(1, Convert.ToBase64String(payload), Convert.ToHexString(HMACSHA256.HashData(pepper, payload)));
-            PrivateFiles.Write(path, LicenseJson.Write(envelope));
-            state = copy;
+            Commit(copy, now);
             return result;
         }
+    }
+
+    /// <summary>Marks the clock checkpoint as mandatory only after its initial file has been durably created.</summary>
+    /// <param name="now">Startup timestamp already recorded by the checkpoint.</param>
+    internal void RequireClockCheckpoint(long now)
+    {
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (state.Schema == 1) Commit(state with { Schema = 2 }, now);
+        }
+    }
+
+    /// <summary>Validates, detaches and atomically commits a candidate while the store lock is held.</summary>
+    /// <param name="candidate">Potentially aliased callback snapshot; never published directly.</param>
+    /// <param name="now">Nonnegative supported server UTC second.</param>
+    private void Commit(LicenseDatabase candidate, long now)
+    {
+        if (now is < 0 or > 253402300799L)
+            throw new LicenseException("DATABASE_INVALID", "Invalid transaction timestamp.");
+        var stamped = candidate with { Revision = checked(state.Revision + 1), LastWriteUtc = Math.Max(state.LastWriteUtc, now) };
+        LicenseDatabaseSnapshot.Validate(stamped, state.Issuer);
+        var committed = LicenseDatabaseSnapshot.Copy(stamped);
+        byte[] payload = LicenseJson.Write(committed);
+        if (payload.Length > MaximumPayload) throw new LicenseException("DATABASE_LIMIT", "License database size limit reached.");
+        var envelope = new DatabaseEnvelope(1, Convert.ToBase64String(payload), Convert.ToHexString(HMACSHA256.HashData(pepper, payload)));
+        PrivateFiles.Write(path, LicenseJson.Write(envelope));
+        state = committed;
     }
 
     /// <summary>Returns a nonreversible server-peppered credential index.</summary>
@@ -101,10 +136,23 @@ public sealed class LicenseStore : IDisposable
     /// <returns>HMAC-SHA256 digest.</returns>
     public string KeyDigest(string key)
     {
-        LicenseCrypto.ValidateAccessKey(key);
-        return Convert.ToHexString(HMACSHA256.HashData(pepper, System.Text.Encoding.ASCII.GetBytes(key))).ToLowerInvariant();
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            LicenseCrypto.ValidateAccessKey(key);
+            return Convert.ToHexString(HMACSHA256.HashData(pepper, System.Text.Encoding.ASCII.GetBytes(key))).ToLowerInvariant();
+        }
     }
 
     /// <summary>Releases the exclusive writer lock and clears the HMAC secret.</summary>
-    public void Dispose() { processLock.Dispose(); CryptographicOperations.ZeroMemory(pepper); }
+    public void Dispose()
+    {
+        lock (sync)
+        {
+            if (disposed) return;
+            disposed = true;
+            processLock.Dispose();
+            CryptographicOperations.ZeroMemory(pepper);
+        }
+    }
 }
