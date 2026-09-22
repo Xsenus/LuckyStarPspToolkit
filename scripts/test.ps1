@@ -16,8 +16,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Core self-tests failed with exit code $LASTEXITCODE." }
     dotnet run --project .\tests\LuckyStarPspToolkit.Formats.SelfTests\LuckyStarPspToolkit.Formats.SelfTests.csproj -c Release --no-build -- @Arguments
     if ($LASTEXITCODE -ne 0) { throw "Formats self-tests failed with exit code $LASTEXITCODE." }
-    dotnet run --project .\src\LuckyStarPspToolkit.Cli\LuckyStarPspToolkit.Cli.csproj -c Release --no-build -- self-test
-    if ($LASTEXITCODE -ne 0) { throw "CLI self-test failed with exit code $LASTEXITCODE." }
+    python scripts/check_locked_cli.py --cli "$Root/src/LuckyStarPspToolkit.Cli/bin/Release/net9.0/lsptool.dll"
+    if ($LASTEXITCODE -ne 0) { throw "CLI license-gate regression failed with exit code $LASTEXITCODE." }
 }
 finally {
     Pop-Location

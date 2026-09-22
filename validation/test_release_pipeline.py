@@ -222,7 +222,7 @@ class ReleasePipelineTests(unittest.TestCase):
                       'inputHashes': execution_input_hashes(root), 'logHashes': log_hashes, 'steps': steps,
                       'standardNet9Validation': False, 'nativeWindowsVerified': False,
                       'gameRuntimeVerified': False, 'binaryReleaseProduced': False,
-                      'compilation': {'success': True, 'assemblies': [{'success': True}] * 6,
+                      'compilation': {'success': True, 'assemblies': [{'success': True}] * 11,
                                       'standardDotnetBuild': False, 'standardNet9Validation': False}}
             path = logs / 'report.json'; path.write_text(json.dumps(report))
             self.assertEqual('0.11.0', validate_evidence(root, path)['version'])
@@ -259,6 +259,9 @@ class ReleasePipelineTests(unittest.TestCase):
             release.write_json(path, {'text': 'Проверка'})
             self.assertEqual({'text': 'Проверка'}, json.loads(path.read_text(encoding='utf-8')))
             self.assertEqual([path], list(Path(temp).iterdir()))
+
+
+from test_license_build import LicenseBuildTests  # Production issuer packaging is part of the release gate.
 
 
 if __name__ == '__main__':

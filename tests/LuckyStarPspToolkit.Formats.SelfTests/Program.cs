@@ -1419,9 +1419,9 @@ internal static partial class SelfTestRunner
     /// </summary>
     private static void TestUnifiedCli()
     {
-        Equal(0, CommandApplication.Run(["version"]));
-        Equal(0, CommandApplication.Run(["formats-self-test"]));
-        Equal(64, CommandApplication.Run(["definitely-not-a-command"]));
+        Equal(0, CommandApplication.RunCore(["version"]));
+        Equal(0, CommandApplication.RunCore(["formats-self-test"]));
+        Equal(64, CommandApplication.RunCore(["definitely-not-a-command"]));
 
         string isoFixture = Path.Combine(Fixtures, "reference.iso");
         string fixture = Path.Combine(Fixtures, "reference.cpk");
@@ -1431,7 +1431,7 @@ internal static partial class SelfTestRunner
         try
         {
             string isoReport = Path.Combine(temp, "iso-list.json");
-            Equal(0, CommandApplication.Run(["iso-list", isoFixture, "--json", isoReport]));
+            Equal(0, CommandApplication.RunCore(["iso-list", isoFixture, "--json", isoReport]));
             using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(isoReport)))
             {
                 Equal("lucky-star-psp.iso9660-summary.v1", document.RootElement.GetProperty("schema").GetString() ?? string.Empty);
@@ -1440,7 +1440,7 @@ internal static partial class SelfTestRunner
 
             string multiOutput = Path.Combine(temp, "multi.bin");
             string multiReport = Path.Combine(temp, "multi.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "iso-extract", isoFixture, "psp_game/usrdir/data/multi.bin;1", multiOutput,
                 "--json", multiReport]));
             Equal(3000L, new FileInfo(multiOutput).Length);
@@ -1452,7 +1452,7 @@ internal static partial class SelfTestRunner
 
             string assetsZip = Path.Combine(temp, "assets.zip");
             string assetsReport = Path.Combine(temp, "assets.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "collect-assets", isoFixture, assetsZip, "--include-optional", "--json", assetsReport]));
             True(File.Exists(assetsZip), "collect-assets did not create its output ZIP.");
             using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(assetsReport)))
@@ -1463,7 +1463,7 @@ internal static partial class SelfTestRunner
             }
             string isoPatchOutput = Path.Combine(temp, "patched.iso");
             string isoPatchReport = Path.Combine(temp, "patched.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "iso-apply-manifest",
                 isoFixture,
                 Path.Combine(Fixtures, "iso-patch-manifest.json"),
@@ -1485,7 +1485,7 @@ internal static partial class SelfTestRunner
             File.Copy(Path.Combine(Fixtures, "iso-replacement-lt.bin"), directReplacement);
             byte[] directReplacementBefore = File.ReadAllBytes(directReplacement);
             string directIsoOutput = Path.Combine(temp, "direct-patched.iso");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "iso-replace", isoFixture, "PSP_GAME/USRDIR/DATA/lt.bin", directReplacement, directIsoOutput,
                 "--expect-source-sha256", BinaryUtilities.Sha256HexFile(isoFixture),
                 "--expect-original-sha256", BinaryUtilities.Sha256HexFile(Path.Combine(Fixtures, "reference-lt.bin")),
@@ -1496,7 +1496,7 @@ internal static partial class SelfTestRunner
             {
                 Equal(BinaryUtilities.Sha256HexFile(directReplacement), directIso.ComputeFileSha256("PSP_GAME/USRDIR/DATA/lt.bin"));
             }
-            Equal(3, CommandApplication.Run([
+            Equal(3, CommandApplication.RunCore([
                 "iso-replace", isoFixture, "PSP_GAME/USRDIR/DATA/lt.bin", directReplacement, Path.Combine(temp, "rejected.iso"),
                 "--json", directReplacement]));
             SequenceEqual(directReplacementBefore, File.ReadAllBytes(directReplacement));
@@ -1509,15 +1509,15 @@ internal static partial class SelfTestRunner
             File.Copy(Path.Combine(Fixtures, "iso-patch-manifest.json"), localManifest);
             string protectedManifestReplacement = Path.Combine(manifestDirectory, "iso-replacement-lt.bin");
             byte[] protectedManifestReplacementBefore = File.ReadAllBytes(protectedManifestReplacement);
-            Equal(3, CommandApplication.Run([
+            Equal(3, CommandApplication.RunCore([
                 "iso-apply-manifest", isoFixture, localManifest, Path.Combine(temp, "manifest-rejected.iso"),
                 "--json", protectedManifestReplacement]));
             SequenceEqual(protectedManifestReplacementBefore, File.ReadAllBytes(protectedManifestReplacement));
 
             byte[] originalIso = File.ReadAllBytes(isoFixture);
-            Equal(3, CommandApplication.Run(["iso-extract", isoFixture, "PSP_GAME/PARAM.SFO", isoFixture]));
+            Equal(3, CommandApplication.RunCore(["iso-extract", isoFixture, "PSP_GAME/PARAM.SFO", isoFixture]));
             SequenceEqual(originalIso, File.ReadAllBytes(isoFixture));
-            Equal(3, CommandApplication.Run(["collect-assets", isoFixture, isoFixture]));
+            Equal(3, CommandApplication.RunCore(["collect-assets", isoFixture, isoFixture]));
             SequenceEqual(originalIso, File.ReadAllBytes(isoFixture));
 
             string protectedCpk = Path.Combine(temp, "protected.cpk");
@@ -1525,7 +1525,7 @@ internal static partial class SelfTestRunner
             byte[] originalCpk = File.ReadAllBytes(protectedCpk);
 
             string report = Path.Combine(temp, "cpk-verify.json");
-            Equal(0, CommandApplication.Run(["cpk-verify", protectedCpk, "--json", report]));
+            Equal(0, CommandApplication.RunCore(["cpk-verify", protectedCpk, "--json", report]));
             True(File.Exists(report), "Unified CLI did not write its requested CPK verification report.");
             using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(report)))
             {
@@ -1533,7 +1533,7 @@ internal static partial class SelfTestRunner
                 True(document.RootElement.GetProperty("semanticVerification").GetBoolean(), "CLI CPK verification report was not marked successful.");
             }
 
-            Equal(3, CommandApplication.Run(["cpk-list", protectedCpk, "--json", protectedCpk]));
+            Equal(3, CommandApplication.RunCore(["cpk-list", protectedCpk, "--json", protectedCpk]));
             SequenceEqual(originalCpk, File.ReadAllBytes(protectedCpk));
 
             string sourceFont = Path.Combine(temp, "lt.bin");
@@ -1542,7 +1542,7 @@ internal static partial class SelfTestRunner
             File.Copy(Path.Combine(Fixtures, "reference-font.bdf"), bdf);
             string fontPreviewBefore = Path.Combine(temp, "font-before.png");
             string fontInspectReport = Path.Combine(temp, "font-inspect.json");
-            Equal(2, CommandApplication.Run([
+            Equal(2, CommandApplication.RunCore([
                 "font-inspect", sourceFont, glyphMap,
                 "--preview", fontPreviewBefore,
                 "--columns", "16", "--scale", "2",
@@ -1553,7 +1553,7 @@ internal static partial class SelfTestRunner
             string patchedFont = Path.Combine(temp, "lt-russian.bin");
             string fontPreviewAfter = Path.Combine(temp, "font-after.png");
             string fontPatchReport = Path.Combine(temp, "font-patch.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "font-import-bdf", sourceFont, glyphMap, bdf, patchedFont,
                 "--preview", fontPreviewAfter,
                 "--columns", "16", "--scale", "2",
@@ -1562,10 +1562,10 @@ internal static partial class SelfTestRunner
                 File.ReadAllBytes(Path.Combine(Fixtures, "reference-lt-russian.bin")),
                 File.ReadAllBytes(patchedFont));
             True(File.Exists(fontPreviewAfter), "Font patch did not create a PNG preview.");
-            Equal(0, CommandApplication.Run(["font-inspect", patchedFont, glyphMap]));
+            Equal(0, CommandApplication.RunCore(["font-inspect", patchedFont, glyphMap]));
 
             byte[] originalFont = File.ReadAllBytes(sourceFont);
-            Equal(3, CommandApplication.Run([
+            Equal(3, CommandApplication.RunCore([
                 "font-import-bdf", sourceFont, glyphMap, bdf, sourceFont]));
             SequenceEqual(originalFont, File.ReadAllBytes(sourceFont));
 
@@ -1573,14 +1573,14 @@ internal static partial class SelfTestRunner
             _ = TranslationWorkspaceService.Export(protectedCpk, glyphMap, workspace, ScriptProfile.Rgo, [0]);
             string manifest = Path.Combine(workspace, "workspace.json");
             byte[] originalManifest = File.ReadAllBytes(manifest);
-            Equal(3, CommandApplication.Run(["workspace-validate", workspace, protectedCpk, "--json", manifest]));
+            Equal(3, CommandApplication.RunCore(["workspace-validate", workspace, protectedCpk, "--json", manifest]));
             SequenceEqual(originalManifest, File.ReadAllBytes(manifest));
 
             string outputCpk = Path.Combine(temp, "translated.cpk");
             string defaultPlan = Path.ChangeExtension(outputCpk, ".eboot-size-plan.json");
             Equal(
                 3,
-                CommandApplication.Run(
+                CommandApplication.RunCore(
                     ["workspace-build", workspace, protectedCpk, outputCpk, "--json", defaultPlan]));
             True(!File.Exists(outputCpk), "Rejected workspace build created a CPK output.");
             True(!File.Exists(defaultPlan), "Rejected workspace build created or replaced its EBOOT plan/report path.");
@@ -1589,7 +1589,7 @@ internal static partial class SelfTestRunner
             string planPath = Path.Combine(temp, "plan.json");
             File.WriteAllBytes(ebootSource, new byte[128]);
             File.WriteAllText(planPath, "preserve-me");
-            Equal(3, CommandApplication.Run(["apply-eboot-plan", ebootSource, planPath, planPath]));
+            Equal(3, CommandApplication.RunCore(["apply-eboot-plan", ebootSource, planPath, planPath]));
             Equal("preserve-me", File.ReadAllText(planPath));
 
             True(PathUtilities.IsWithinOrSame(manifest, workspace), "Workspace manifest must be detected inside workspace.");
@@ -1639,7 +1639,7 @@ internal static partial class SelfTestRunner
             byte[] sourceBefore = File.ReadAllBytes(sourcePath);
 
             string groupsReport = Path.Combine(temp, "groups.json");
-            Equal(0, CommandApplication.Run(["eboot-vwf-groups", "--json", groupsReport]));
+            Equal(0, CommandApplication.RunCore(["eboot-vwf-groups", "--json", groupsReport]));
             using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(groupsReport)))
             {
                 Equal(133, document.RootElement.GetProperty("totalPatchCount").GetInt32());
@@ -1647,7 +1647,7 @@ internal static partial class SelfTestRunner
             }
 
             string inspectReport = Path.Combine(temp, "inspect.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "eboot-vwf-inspect", sourcePath, "--json", inspectReport]));
             using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(inspectReport)))
             {
@@ -1660,12 +1660,12 @@ internal static partial class SelfTestRunner
 
             string fullPath = Path.Combine(temp, "EBOOT.VWF.ELF");
             string fullReport = Path.Combine(temp, "apply.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "eboot-vwf-apply", sourcePath, fullPath, "--json", fullReport]));
             Equal(RgoVwfPatchProfile.KnownFullPatchedSha256, BinaryUtilities.Sha256HexFile(fullPath));
 
             string verifyFullReport = Path.Combine(temp, "verify-full.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "verify-eboot", fullPath, "--json", verifyFullReport]));
             using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(verifyFullReport)))
             {
@@ -1675,13 +1675,13 @@ internal static partial class SelfTestRunner
             }
 
             string secondPath = Path.Combine(temp, "EBOOT.VWF.SECOND.ELF");
-            Equal(0, CommandApplication.Run(["eboot-vwf-apply", fullPath, secondPath]));
+            Equal(0, CommandApplication.RunCore(["eboot-vwf-apply", fullPath, secondPath]));
             SequenceEqual(File.ReadAllBytes(fullPath), File.ReadAllBytes(secondPath));
 
             string corePath = Path.Combine(temp, "EBOOT.CORE.ELF");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "eboot-vwf-apply", sourcePath, corePath, "--groups", "core-only"]));
-            Equal(2, CommandApplication.Run(["verify-eboot", corePath]));
+            Equal(2, CommandApplication.RunCore(["verify-eboot", corePath]));
             RgoExecutableCheck coreCheck = RgoProfile.VerifyExecutable(File.ReadAllBytes(corePath));
             Equal(ExecutableCompatibility.RecognizedVwfPatchLineage, coreCheck.Compatibility);
             Equal(66, coreCheck.VwfPatchedWordCount);
@@ -1692,7 +1692,7 @@ internal static partial class SelfTestRunner
             string planPath = Path.Combine(temp, "size-plan.json");
             plan.Save(planPath);
             string combinedPath = Path.Combine(temp, "EBOOT.VWF.SIZE.ELF");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "eboot-vwf-apply", sourcePath, combinedPath, "--size-plan", planPath]));
             RgoExecutableCheck combinedCheck = RgoProfile.VerifyExecutable(File.ReadAllBytes(combinedPath));
             Equal(ExecutableCompatibility.RecognizedVwfPatchLineage, combinedCheck.Compatibility);
@@ -1702,7 +1702,7 @@ internal static partial class SelfTestRunner
             Equal(RgoProfile.KnownScriptHeapBytes, combinedCheck.ScriptHeapBytes);
             True(combinedCheck.ScriptHeapConsistent,
                 "Small size-plan build did not preserve the verified script heap.");
-            Equal(0, CommandApplication.Run(["verify-eboot", combinedPath]));
+            Equal(0, CommandApplication.RunCore(["verify-eboot", combinedPath]));
 
             EbootSizePatchPlan largePlan = EbootSizePatchPlan.Create(
                 ScriptProfile.Rgo,
@@ -1711,7 +1711,7 @@ internal static partial class SelfTestRunner
             largePlan.Save(largePlanPath);
             string largeCombinedPath = Path.Combine(temp, "EBOOT.VWF.LARGE.ELF");
             string largeCombinedReport = Path.Combine(temp, "large-apply.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "eboot-build", sourcePath, largeCombinedPath,
                 "--size-plan", largePlanPath,
                 "--json", largeCombinedReport]));
@@ -1723,7 +1723,7 @@ internal static partial class SelfTestRunner
             Equal(1200 * 2048, largeCombinedCheck.RequiredScriptHeapBytes);
             True(largeCombinedCheck.ScriptHeapModified && largeCombinedCheck.ScriptHeapConsistent,
                 "Large size-plan build did not expand the script heap safely.");
-            Equal(0, CommandApplication.Run(["verify-eboot", largeCombinedPath]));
+            Equal(0, CommandApplication.RunCore(["verify-eboot", largeCombinedPath]));
             using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(largeCombinedReport)))
             {
                 Equal(1200 * 2048, document.RootElement.GetProperty("finalScriptHeapBytes").GetInt32());
@@ -1732,10 +1732,10 @@ internal static partial class SelfTestRunner
             }
 
             string pristineElfPath = Path.Combine(temp, "EBOOT.PRISTINE.ELF");
-            Equal(0, CommandApplication.Run(["decrypt-eboot", sourcePath, pristineElfPath]));
+            Equal(0, CommandApplication.RunCore(["decrypt-eboot", sourcePath, pristineElfPath]));
             string planOnlyPath = Path.Combine(temp, "EBOOT.LARGE.PLAN.ONLY.ELF");
             string planOnlyReport = Path.Combine(temp, "large-plan-only.json");
-            Equal(0, CommandApplication.Run([
+            Equal(0, CommandApplication.RunCore([
                 "apply-eboot-plan", pristineElfPath, largePlanPath, planOnlyPath,
                 "--json", planOnlyReport]));
             RgoVwfPatchInspection planOnlyInspection = RgoVwfPatchProfile.Inspect(
@@ -1755,12 +1755,12 @@ internal static partial class SelfTestRunner
             }
 
             string rejectedCombined = Path.Combine(temp, "rejected-partial-plan.elf");
-            Equal(3, CommandApplication.Run([
+            Equal(3, CommandApplication.RunCore([
                 "eboot-vwf-apply", corePath, rejectedCombined, "--size-plan", planPath]));
             True(!File.Exists(rejectedCombined),
                 "Rejected partial-patch + size-plan operation created an output file.");
 
-            Equal(3, CommandApplication.Run(["eboot-vwf-apply", sourcePath, sourcePath]));
+            Equal(3, CommandApplication.RunCore(["eboot-vwf-apply", sourcePath, sourcePath]));
             SequenceEqual(sourceBefore, File.ReadAllBytes(sourcePath));
         }
         finally

@@ -14,12 +14,42 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Formats
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Documentation", "tools\LuckyStarPspToolkit.Documentation\LuckyStarPspToolkit.Documentation.csproj", "{A7A16901-0052-4564-81AC-839E5CA10010}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Licensing", "src\LuckyStarPspToolkit.Licensing\LuckyStarPspToolkit.Licensing.csproj", "{3ED4A9AD-10A3-5C40-8F60-42EE3783D2FB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Licensing.Authority", "src\LuckyStarPspToolkit.Licensing.Authority\LuckyStarPspToolkit.Licensing.Authority.csproj", "{34BA7D95-C6A7-5808-89C4-6C61F756D494}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.LicenseServer", "src\LuckyStarPspToolkit.LicenseServer\LuckyStarPspToolkit.LicenseServer.csproj", "{214E3C20-CD5E-5599-8E26-BE482C16C236}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.LicenseAdmin", "src\LuckyStarPspToolkit.LicenseAdmin\LuckyStarPspToolkit.LicenseAdmin.csproj", "{87B4D277-145E-5F9E-9F35-9C9F16966FAF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuckyStarPspToolkit.Licensing.SelfTests", "tests\LuckyStarPspToolkit.Licensing.SelfTests\LuckyStarPspToolkit.Licensing.SelfTests.csproj", "{C5F3DF2C-514E-55E3-8542-FD9B815005F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3ED4A9AD-10A3-5C40-8F60-42EE3783D2FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3ED4A9AD-10A3-5C40-8F60-42EE3783D2FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3ED4A9AD-10A3-5C40-8F60-42EE3783D2FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3ED4A9AD-10A3-5C40-8F60-42EE3783D2FB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34BA7D95-C6A7-5808-89C4-6C61F756D494}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34BA7D95-C6A7-5808-89C4-6C61F756D494}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34BA7D95-C6A7-5808-89C4-6C61F756D494}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34BA7D95-C6A7-5808-89C4-6C61F756D494}.Release|Any CPU.Build.0 = Release|Any CPU
+		{214E3C20-CD5E-5599-8E26-BE482C16C236}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{214E3C20-CD5E-5599-8E26-BE482C16C236}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{214E3C20-CD5E-5599-8E26-BE482C16C236}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{214E3C20-CD5E-5599-8E26-BE482C16C236}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87B4D277-145E-5F9E-9F35-9C9F16966FAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87B4D277-145E-5F9E-9F35-9C9F16966FAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87B4D277-145E-5F9E-9F35-9C9F16966FAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87B4D277-145E-5F9E-9F35-9C9F16966FAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5F3DF2C-514E-55E3-8542-FD9B815005F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5F3DF2C-514E-55E3-8542-FD9B815005F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5F3DF2C-514E-55E3-8542-FD9B815005F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5F3DF2C-514E-55E3-8542-FD9B815005F0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A7A16901-0052-4564-81AC-839E5CA10010}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A7A16901-0052-4564-81AC-839E5CA10010}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A7A16901-0052-4564-81AC-839E5CA10010}.Release|Any CPU.ActiveCfg = Release|Any CPU

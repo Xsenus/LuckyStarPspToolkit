@@ -2,10 +2,11 @@
   <!-- Explicit entry point; plain solution builds never recursively publish themselves. -->
   <PropertyGroup>
     <PythonCommand Condition="'$(PythonCommand)' == ''">python</PythonCommand>
+    <LicenseTrustArgument Condition="'$(LicenseTrustFile)' != ''">--license-trust &quot;$(LicenseTrustFile)&quot;</LicenseTrustArgument>
     <ReleaseRids Condition="'$(ReleaseRids)' == ''">win-x64,linux-x64</ReleaseRids>
   </PropertyGroup>
   <Target Name="Release">
-    <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="&quot;$(PythonCommand)&quot; scripts/build_release.py --rids &quot;$(ReleaseRids)&quot;" />
+    <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="&quot;$(PythonCommand)&quot; scripts/build_release.py --rids &quot;$(ReleaseRids)&quot; $(LicenseTrustArgument)" />
   </Target>
   <Target Name="Check">
     <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="&quot;$(PythonCommand)&quot; scripts/build_release.py --compile-only" />

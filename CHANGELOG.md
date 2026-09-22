@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.0
+
+Online owner-controlled licensing, signed short leases, device limits, timed/perpetual entitlements, revocation, owner CLI/server and fail-closed customer distribution. See docs/RELEASE_NOTES_0.14.0_RU.md.
+
 ## 0.13.0 — 2026-09-22
 
 - Add metadata-only CPK inspection and targeted extraction; reuse one layout validator throughout.

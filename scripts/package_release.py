@@ -156,6 +156,7 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
                     'historyCommits': commits,
                     'validationStatus': report['status'], 'compiledBinariesIncluded': False,
                     'fontFilesIncluded': False, 'customerFilesIncluded': False,
+                    'ownerOnly': True, 'licensePolicy': 'strict-online', 'signingCredentialsIncluded': False,
                     'sourceFiles': files, 'gitBundleSha256': digest(bundle)}
         write_json(root / 'MANIFEST.json', manifest)
         managed_path = ROOT / 'artifacts/validation/managed-fallback/managed-fallback-report.json'
@@ -166,11 +167,13 @@ def package(output: Path, previous_tag: str, allow_partial: bool) -> Path:
                             'Это НЕ .NET 9 SDK build и НЕ проверка Windows/PSP.\n')
         (root / 'START_HERE_RU.md').write_text(
             f'# Полный исходный комплект {version}\n\n'
-            'Начните с project/START_HERE_RU.md и project/docs/USAGE_RU.md.\n'
+            'КОМПЛЕКТ ВЛАДЕЛЬЦА: не отправлять исходники, Git bundle и инструменты выдачи ключей клиенту.\n'
+            'Начните с project/START_HERE_RU.md и project/docs/LICENSE_OWNER_RU.md.\n'
             + managed_line +
             'Готовых EXE/DLL, чужого runtime/компилятора, игровых и шрифтовых файлов нет.\n'
             'Проверки: reports/validation-summary.json и reports/managed-fallback/.\n'
-            'Сборка Windows: из project выполнить build.cmd --rids win-x64.\n'
+            'Клиентская сборка: build.cmd --rids win-x64 --license-trust <публичный client-trust.json>.\n'
+            'Без публичного издателя программа остаётся заблокированной. Секреты создаются владельцем отдельно.\n'
             f'После УСПЕШНОЙ native-сборки ZIP и EXE: project/artifacts/releases/{version}.\n'
             'Показ заказчику: project/docs/CUSTOMER_DEMO_RU.md.\n'
             'GitHub: project/docs/GITHUB_PUBLISH_RU.md. Происхождение: project/THIRD_PARTY_NOTICES.md.\n'

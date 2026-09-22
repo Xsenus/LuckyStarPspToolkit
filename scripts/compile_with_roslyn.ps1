@@ -7,10 +7,12 @@ not necessarily .NET 9. This does not run MSBuild, SDK analyzers, restore or pub
 No compiler/runtime is downloaded or redistributed. Release builds still require .NET 9 SDK.
 .PARAMETER Root
 Repository root containing VERSION and src/tests/tools.
+.PARAMETER LicenseTrustFile
+Optional throwaway/public profile embedded only into the diagnostic CLI. Never pass authority secrets.
 .PARAMETER Out
 An existing or new directory under Root/artifacts reserved for diagnostic assemblies.
 #>
-param([Parameter(Mandatory=$true)][string]$Root,[Parameter(Mandatory=$true)][string]$Out)
+param([Parameter(Mandatory=$true)][string]$Root,[Parameter(Mandatory=$true)][string]$Out,[string]$LicenseTrustFile="")
 $ErrorActionPreference='Stop'
 $Root=[IO.Path]::GetFullPath($Root)
 $Out=[IO.Path]::GetFullPath($Out)
@@ -23,11 +25,16 @@ $parse=[Microsoft.CodeAnalysis.CSharp.CSharpParseOptions]::new([Microsoft.CodeAn
 $metadata=[Collections.Generic.List[Microsoft.CodeAnalysis.MetadataReference]]::new()
 Get-ChildItem "$PSHOME/ref/*.dll" | ForEach-Object {$metadata.Add([Microsoft.CodeAnalysis.MetadataReference]::CreateFromFile($_.FullName))}
 $units=@(
+ @('LuckyStarPspToolkit.Licensing','src/LuckyStarPspToolkit.Licensing','lib',@()),
+ @('LuckyStarPspToolkit.Licensing.Authority','src/LuckyStarPspToolkit.Licensing.Authority','lib',@('LuckyStarPspToolkit.Licensing')),
+ @('lsp-license-server','src/LuckyStarPspToolkit.LicenseServer','exe',@('LuckyStarPspToolkit.Licensing','LuckyStarPspToolkit.Licensing.Authority')),
+ @('lsp-license-admin','src/LuckyStarPspToolkit.LicenseAdmin','exe',@('LuckyStarPspToolkit.Licensing','LuckyStarPspToolkit.Licensing.Authority')),
  @('LuckyStarPspToolkit.Core','src/LuckyStarPspToolkit.Core','lib',@()),
  @('LuckyStarPspToolkit.Formats','src/LuckyStarPspToolkit.Formats','lib',@()),
- @('lsptool','src/LuckyStarPspToolkit.Cli','exe',@('LuckyStarPspToolkit.Core','LuckyStarPspToolkit.Formats')),
+ @('lsptool','src/LuckyStarPspToolkit.Cli','exe',@('LuckyStarPspToolkit.Core','LuckyStarPspToolkit.Formats','LuckyStarPspToolkit.Licensing')),
  @('LuckyStarPspToolkit.SelfTests','tests/LuckyStarPspToolkit.SelfTests','exe',@('LuckyStarPspToolkit.Core')),
  @('LuckyStarPspToolkit.Formats.SelfTests','tests/LuckyStarPspToolkit.Formats.SelfTests','exe',@('LuckyStarPspToolkit.Core','LuckyStarPspToolkit.Formats','lsptool')),
+ @('LuckyStarPspToolkit.Licensing.SelfTests','tests/LuckyStarPspToolkit.Licensing.SelfTests','exe',@('LuckyStarPspToolkit.Licensing','LuckyStarPspToolkit.Licensing.Authority','lsptool')),
  @('LuckyStarPspToolkit.Documentation','tools/LuckyStarPspToolkit.Documentation','exe',@('Microsoft.CodeAnalysis','Microsoft.CodeAnalysis.CSharp'))
 )
 $version=(Get-Content "$Root/VERSION" -Raw).Trim()
@@ -57,7 +64,15 @@ foreach($u in $units){
  $options=[Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions]::new($kind).WithOptimizationLevel([Microsoft.CodeAnalysis.OptimizationLevel]::Release).WithNullableContextOptions([Microsoft.CodeAnalysis.NullableContextOptions]::Enable).WithDeterministic($true)
  $comp=[Microsoft.CodeAnalysis.CSharp.CSharpCompilation]::Create($name,$trees,$refs,$options)
  $dll=[IO.File]::Create("$Out/$name.dll");$xml=[IO.File]::Create("$Out/$name.xml")
- try{$result=$comp.Emit($dll,$null,$xml)}finally{$dll.Dispose();$xml.Dispose()}
+ try{
+  if($name -eq 'lsptool' -and $LicenseTrustFile){
+   $absoluteTrust=[IO.Path]::GetFullPath($LicenseTrustFile)
+   $script:TrustPayload=[IO.File]::ReadAllBytes($absoluteTrust)
+   $streamFactory=[Func[IO.Stream]]{[IO.MemoryStream]::new($script:TrustPayload,$false)}
+   $resource=[Microsoft.CodeAnalysis.ResourceDescription]::new('LuckyStarPspToolkit.license-trust.json',$streamFactory,$true)
+   $result=$comp.Emit($dll,$null,$xml,$null,[Microsoft.CodeAnalysis.ResourceDescription[]]@($resource))
+  }else{$result=$comp.Emit($dll,$null,$xml)}
+ }finally{$dll.Dispose();$xml.Dispose()}
  $warnings=@($result.Diagnostics | Where-Object {$_.Severity -eq [Microsoft.CodeAnalysis.DiagnosticSeverity]::Warning -and $_.Id -ne 'CS1587'})
  $errors=@($result.Diagnostics | Where-Object {$_.Severity -eq [Microsoft.CodeAnalysis.DiagnosticSeverity]::Error})
  foreach($d in $result.Diagnostics){if($d.Severity -ne [Microsoft.CodeAnalysis.DiagnosticSeverity]::Hidden -and $d.Id -ne 'CS1587'){Write-Output $d.ToString()}}

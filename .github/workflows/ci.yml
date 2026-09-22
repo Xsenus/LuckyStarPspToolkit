@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - name: Checked build, tests, Roslyn summaries, publish and synthetic demo
+      - name: Checked build, licensing lifecycle, licensed synthetic demo and LOCKED preview
         run: python scripts/build_release.py --rids ${{ matrix.rid }}
       - name: Upload validated packages
         uses: actions/upload-artifact@v4

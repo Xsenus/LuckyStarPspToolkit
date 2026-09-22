@@ -10,7 +10,7 @@ EXTENSIONS = {'.cs', '.csproj', '.props', '.targets', '.sln', '.py', '.ps1', '.s
 ROOT_FILES = {'VERSION', 'global.json', 'NuGet.Config', '.editorconfig'}
 EXPECTED_STEPS = {'fixtures', 'roslyn-compilation', 'LuckyStarPspToolkit.SelfTests',
                   'LuckyStarPspToolkit.Formats.SelfTests', 'LuckyStarPspToolkit.Documentation',
-                  'managed-cli-self-test', 'managed-synthetic-demo'}
+                  'managed-cli-self-test', 'managed-synthetic-demo', 'LuckyStarPspToolkit.Licensing.SelfTests'}
 
 
 def execution_input_hashes(root: Path) -> dict[str, str]:
@@ -61,8 +61,8 @@ def validate_evidence(root: Path, report_path: Path) -> dict[str, object]:
             raise ValueError(f'Managed-host log is missing or modified: {name}')
     compilation = report.get('compilation', {})
     assemblies = compilation.get('assemblies', [])
-    if compilation.get('success') is not True or len(assemblies) != 6 or any(a.get('success') is not True for a in assemblies):
-        raise ValueError('Six successful compilations are required.')
+    if compilation.get('success') is not True or len(assemblies) != 11 or any(a.get('success') is not True for a in assemblies):
+        raise ValueError('Eleven successful compilations are required.')
     if compilation.get('standardDotnetBuild') is not False or compilation.get('standardNet9Validation') is not False:
         raise ValueError('Fallback compilation must not masquerade as dotnet build.')
     return report

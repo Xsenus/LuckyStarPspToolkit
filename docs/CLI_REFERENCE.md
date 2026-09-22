@@ -1,3 +1,5 @@
+> **Изменение 0.14.0:** все рабочие команды требуют онлайн-лицензию. Сначала [инструкция владельца](LICENSE_OWNER_RU.md) и [активация](LICENSE_CUSTOMER_RU.md). Сборка без `--license-trust` остаётся заблокированной. Старое standalone demo требует уже активированный CLI; `scripts/license_integration.py` проверяет полный сценарий на отдельном тестовом издателе.
+
 # CLI reference
 
 Run `lsptool --help` for the canonical command surface. Commands return stable exit codes and accept `--json <path>` where documented.

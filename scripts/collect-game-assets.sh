@@ -11,7 +11,9 @@ TXT
 
 [[ $# -ge 1 ]] || usage
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-DOTNET=$("$ROOT/scripts/resolve-dotnet.sh")
+VERSION=$(tr -d '\r\n' < "$ROOT/VERSION")
+CLI="$ROOT/artifacts/releases/$VERSION/linux-x64/lsptool"
+[[ -x "$CLI" ]] || { echo "Build and activate the configured Linux release first." >&2; exit 77; }
 ISO=$(realpath "$1")
 shift
 OUT=""
@@ -35,10 +37,7 @@ OUT=${OUT:-$PWD/lucky-star-psp-assets.zip}
 OUT=$(realpath -m "$OUT")
 REPORT="$OUT.json"
 
-if "$DOTNET" run \
-  --project "$ROOT/src/LuckyStarPspToolkit.Cli/LuckyStarPspToolkit.Cli.csproj" \
-  -c Release -- \
-  collect-assets "$ISO" "$OUT" "${FLAGS[@]}" --json "$REPORT"; then
+if "$CLI" collect-assets "$ISO" "$OUT" "${FLAGS[@]}" --json "$REPORT"; then
   STATUS=0
 else
   STATUS=$?

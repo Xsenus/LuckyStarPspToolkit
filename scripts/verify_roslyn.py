@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def verify(pwsh: Path) -> int:
-    """Compile six assemblies, invoke both suites and Roslyn docs, then run the full synthetic CLI demo."""
+    """Compile eleven assemblies, invoke three suites and Roslyn docs, then run the full synthetic CLI demo."""
     base = ROOT / 'artifacts' / 'roslyn' / uuid.uuid4().hex
     ensure_regular_tree(base)
     base.mkdir(parents=True)
@@ -41,15 +41,15 @@ def verify(pwsh: Path) -> int:
         report['compilation'] = json.loads((assembly_root / 'compilation-report.json').read_text())
         shutil.copytree(ROOT / 'tests/LuckyStarPspToolkit.Formats.SelfTests/Fixtures', assembly_root / 'Fixtures')
         for name in ('LuckyStarPspToolkit.SelfTests', 'LuckyStarPspToolkit.Formats.SelfTests',
-                     'LuckyStarPspToolkit.Documentation'):
+                     'LuckyStarPspToolkit.Licensing.SelfTests', 'LuckyStarPspToolkit.Documentation'):
             extra = [str(ROOT)] if name.endswith('.Documentation') else []
             runner.run(name, [str(pwsh), '-NoProfile', '-NoLogo', '-File', 'scripts/run_managed.ps1',
                             str(assembly_root / (name + '.dll')), *extra])
-        runner.run('managed-cli-self-test', [str(pwsh), '-NoProfile', '-NoLogo', '-File',
-                    'scripts/run_managed.ps1', str(assembly_root / 'lsptool.dll'), 'self-test'])
-        runner.run('managed-synthetic-demo', [sys.executable, 'scripts/demo_customer.py', '--cli',
-                    str(assembly_root / 'lsptool.dll'), '--powershell-host', str(pwsh), '--output', str(base / 'demo')])
-        report['demo'] = json.loads((base / 'demo/DEMO-REPORT.json').read_text())
+        runner.run('managed-cli-self-test', [sys.executable, 'scripts/check_locked_cli.py', '--cli', str(assembly_root / 'lsptool.dll'), '--pwsh', str(pwsh)])
+        runner.run('managed-synthetic-demo', [sys.executable, 'scripts/license_integration.py', '--assemblies',
+                    str(assembly_root), '--pwsh', str(pwsh), '--output', str(base / 'licensing')])
+        report['licensing'] = json.loads((base / 'licensing/licensing-integration-report.json').read_text())
+        report['demo'] = report['licensing']['demo']
         if report['inputHashes'] != execution_input_hashes(ROOT):
             raise BuildError('Source changed during managed verification; run it again.')
         report['status'] = 'passed-experimental-managed-host'
@@ -68,6 +68,14 @@ def verify(pwsh: Path) -> int:
         for path in (base / 'logs').glob('*.log'):
             shutil.copy2(path, evidence / path.name)
         write_json(evidence / 'managed-fallback-report.json', report)
+        if (base / 'licensing/licensing-integration-report.json').is_file():
+            clean = ROOT / 'artifacts/validation/licensing-process'
+            clean.mkdir(parents=True, exist_ok=True)
+            for path in (base / 'licensing').glob('*.log'):
+                shutil.copy2(path, clean / path.name)
+            shutil.copy2(base / 'licensing/licensing-integration-report.json', clean / 'licensing-integration-report.json')
+            if (base / 'licensing/demo/DEMO-REPORT.json').is_file():
+                shutil.copy2(base / 'licensing/demo/DEMO-REPORT.json', clean / 'DEMO-REPORT.json')
         print(f'Managed verification: {report["status"]}; .NET 9 SDK/release and gameplay are NOT verified.')
     return code
 

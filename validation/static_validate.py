@@ -140,7 +140,6 @@ def validate_csharp_documentation() -> None:
 def validate_source_policy() -> None:
     forbidden = [
         'NotImplementedException',
-        'HttpClient(',
         'Process.Start(',
         'lsptool-legacy',
         'LuckyStarPspToolkit.NextCli',
@@ -150,6 +149,14 @@ def validate_source_policy() -> None:
     for marker in forbidden:
         if marker in all_source:
             fail(f'forbidden marker in C# source: {marker}')
+    network_allowlist = {
+        'src/LuckyStarPspToolkit.Licensing/LicenseTransport.cs',
+        'src/LuckyStarPspToolkit.LicenseAdmin/Program.cs',
+        'tests/LuckyStarPspToolkit.Licensing.SelfTests/Program.cs',
+    }
+    for path in source_files:
+        if 'HttpClient(' in path.read_text(encoding='utf-8') and path.relative_to(ROOT).as_posix() not in network_allowlist:
+            fail(f'HTTP client outside the reviewed licensing boundary: {path.relative_to(ROOT)}')
     project_text = '\n'.join(path.read_text(encoding='utf-8') for path in ROOT.rglob('*.csproj'))
     if '<PackageReference' in project_text:
         fail('NuGet PackageReference found; runtime must remain dependency-free')
@@ -206,10 +213,13 @@ def validate_repository_readiness() -> None:
     for marker in ('document_csharp.py', 'document_members.py', 'reference_oracle.py',
                    'static_validate.py', 'audit_repository.py', 'validate_customer_baseline.py',
                    'LuckyStarPspToolkit.SelfTests', 'LuckyStarPspToolkit.Formats.SelfTests',
-                   'LuckyStarPspToolkit.Documentation', 'demo_customer.py', 'native_rid()',
+                   'LuckyStarPspToolkit.Documentation', 'license_integration.py', 'check_locked_cli.py',
+                   'LuckyStarPspToolkit.Licensing.SelfTests', 'validate_public_profile', 'native_rid()',
                    'promote_directory', 'compiled', 'gameRuntimeVerified'):
         if marker not in driver:
             fail(f'shared release driver is missing gate {marker!r}')
+    if 'scripts/demo_customer.py' not in (ROOT / 'scripts/license_integration.py').read_text(encoding='utf-8'):
+        fail('Licensed integration must still run the original synthetic game-tool demonstration')
     nuget = ET.parse(ROOT / 'NuGet.Config')
     sources = nuget.findall('.//packageSources/add')
     if nuget.find('.//packageSources/clear') is None or len(sources) != 1:
@@ -684,7 +694,7 @@ def main() -> int:
     run_check('projects and canonical solution are consistent', validate_project_references)
     run_check('C# delimiter balance passes token-aware scan', validate_csharp_delimiters)
     run_check('recognized named C# types and methods have XML documentation (offline check)', validate_csharp_documentation)
-    run_check('source has no sidecar, network, process, or NuGet dependency', validate_source_policy)
+    run_check('source has no sidecar/process/NuGet dependencies; networking is confined to licensing', validate_source_policy)
     run_check('repository governance files and checked workflow entry points are present (not executed)', validate_repository_readiness)
     run_check('release-hardening optimizations and tests remain present', validate_optimization_contracts)
     run_check('version metadata is centrally consistent', validate_versions)

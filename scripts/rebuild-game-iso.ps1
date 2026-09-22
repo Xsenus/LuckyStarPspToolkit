@@ -5,11 +5,17 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ManifestPath,
     [string]$OutputIso = '.\LuckyStar-patched.iso',
-    [string]$ReportPath
+    [string]$ReportPath,
+    [string]$CliPath
 )
 
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
+if (-not $CliPath) {
+    $Version = (Get-Content -Raw "$Root/VERSION").Trim()
+    $CliPath = "$Root/artifacts/releases/$Version/win-x64/lsptool.exe"
+}
+if (-not (Test-Path -LiteralPath $CliPath -PathType Leaf)) { throw 'Build and activate the configured customer release first, or specify -CliPath.' }
 $Iso = (Resolve-Path -LiteralPath $IsoPath).Path
 $Manifest = (Resolve-Path -LiteralPath $ManifestPath).Path
 $Output = [System.IO.Path]::GetFullPath($OutputIso)
@@ -21,12 +27,11 @@ else {
 }
 
 $Arguments = @(
-    'run', '--project', "$Root/src/LuckyStarPspToolkit.Cli/LuckyStarPspToolkit.Cli.csproj",
-    '-c', 'Release', '--', 'iso-apply-manifest', $Iso, $Manifest, $Output,
+    'iso-apply-manifest', $Iso, $Manifest, $Output,
     '--json', $Report
 )
 
-dotnet @Arguments
+& $CliPath @Arguments
 if ($LASTEXITCODE -ne 0) {
     throw "ISO rebuild failed with exit code $LASTEXITCODE."
 }

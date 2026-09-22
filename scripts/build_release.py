@@ -150,15 +150,18 @@ class CommandRunner:
         return text
 
 
-def publish_command(dotnet: str, rid: str, output: Path) -> list[str]:
+def publish_command(dotnet: str, rid: str, output: Path, trust_file: Path | None = None) -> list[str]:
     """Build a RID-specific publish command with implicit restore enabled for runtime packs."""
-    return [dotnet, "publish", CLI_PROJECT, "-c", "Release", "-r", rid,
+    command = [dotnet, "publish", CLI_PROJECT, "-c", "Release", "-r", rid,
             "--self-contained", "true", "-p:PublishSingleFile=true",
             "-p:IncludeNativeLibrariesForSelfExtract=true", "-p:PublishTrimmed=false",
             "--nologo", "-o", str(output)]
+    if trust_file is not None:
+        command.append("-p:LicenseTrustFile=" + str(trust_file))
+    return command
 
 
-def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: bool = False) -> Path:
+def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: bool = False, license_trust: Path | None = None) -> Path:
     """Validate sources, compile, test and publish a complete release or leave the prior release untouched."""
     version = (root / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
@@ -174,6 +177,21 @@ def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: boo
         "status": "running", "compiled": False, "testsPassed": False,
         "gameRuntimeVerified": False, "targets": [], "steps": runner.steps}
     try:
+        embedded_trust = None
+        profile = None
+        if license_trust is not None:
+            from license_build_profile import validate_public_profile
+            ensure_regular_tree(license_trust)
+            if license_trust.stat().st_size > 8192:
+                raise BuildError("Public license trust is too large")
+            data = license_trust.read_bytes()
+            profile = validate_public_profile(data)
+            logs.mkdir(parents=True, exist_ok=True)
+            embedded_trust = logs / "customer-public-trust.json"
+            embedded_trust.write_bytes(data)  # Public snapshot only; no runtime override exists.
+            report["licenseTrustSha256"] = digest(embedded_trust)
+            report["licenseIssuer"] = profile["issuer"]
+        report["licenseConfigured"] = profile is not None
         sdk = runner.run("sdk", [dotnet, "--version"]).strip()
         if not re.fullmatch(r"9\.\d+\.\d+", sdk):
             raise BuildError(f"This branch requires a stable .NET 9 SDK; selected: {sdk}")
@@ -200,11 +218,14 @@ def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: boo
         for name, project in [
             ("core-tests", "tests/LuckyStarPspToolkit.SelfTests"),
             ("formats-tests", "tests/LuckyStarPspToolkit.Formats.SelfTests"),
+            ("licensing-tests", "tests/LuckyStarPspToolkit.Licensing.SelfTests"),
             ("roslyn-docs", "tools/LuckyStarPspToolkit.Documentation"),
         ]:
             arguments = [str(root)] if name == "roslyn-docs" else []
             runner.run(name, [dotnet, "run", "--project", project, "-c", "Release", "--no-build", "--", *arguments])
-        runner.run("cli-tests", [dotnet, "run", "--project", CLI_PROJECT, "-c", "Release", "--no-build", "--", "self-test"])
+        runner.run("cli-license-gate", [sys.executable, "scripts/check_locked_cli.py", "--dotnet", dotnet,
+            "--cli", str(root / "src/LuckyStarPspToolkit.Cli/bin/Release/net9.0/lsptool.dll")])
+        runner.run("licensing-process-integration", [sys.executable, "scripts/license_integration.py", "--dotnet", dotnet])
         report["testsPassed"] = True
         if compile_only:
             report["status"] = "compiled-and-tested"
@@ -213,7 +234,7 @@ def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: boo
         targets: list[dict[str, object]] = []
         for rid in rids:
             folder = staging / rid
-            runner.run("publish-" + rid, publish_command(dotnet, rid, folder))
+            runner.run("publish-" + rid, publish_command(dotnet, rid, folder, embedded_trust))
             executable = folder / ("lsptool.exe" if rid == "win-x64" else "lsptool")
             if not executable.is_file() or executable.stat().st_size < 4:
                 raise BuildError(f"Expected published executable missing: {executable}")
@@ -226,15 +247,29 @@ def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: boo
                 actual = runner.run("version-" + rid, [str(executable), "version"]).strip()
                 if actual != version:
                     raise BuildError(f"Published version mismatch: {actual} != {version}")
-                runner.run("smoke-" + rid, [str(executable), "self-test"])
-                runner.run("demo-" + rid, [sys.executable, "scripts/demo_customer.py", "--cli", str(executable)])
+                if profile is None:
+                    runner.run("license-gate-" + rid, [sys.executable, "scripts/check_locked_cli.py", "--cli", str(executable)])
+                if profile is not None:
+                    actual_profile = json.loads(runner.run("embedded-issuer-" + rid, [str(executable), "license", "build-info"]))
+                    if actual_profile["issuer"] != profile["issuer"] or actual_profile["developmentLoopback"] is not False:
+                        raise BuildError("Published customer executable has the wrong licensing trust")
             else:
                 print(f"NOTICE: {rid} is cross-published, not executed on this host.")
             for name in ("README.md", "VERSION", "LICENSE", "THIRD_PARTY_NOTICES.md"):
                 shutil.copy2(root / name, folder / name)
-            shutil.copytree(root / "docs", folder / "docs", dirs_exist_ok=True)
+            (folder / "docs").mkdir(exist_ok=True)
+            # Customer packages deliberately omit server/admin sources and owner operational documentation.
+            for doc in ("LICENSE_CUSTOMER_RU.md", "USAGE_RU.md", "CLI_REFERENCE.md", "TROUBLESHOOTING.md"):
+                if (root / "docs" / doc).is_file():
+                    shutil.copy2(root / "docs" / doc, folder / "docs" / doc)
             shutil.copytree(root / "profiles", folder / "profiles", dirs_exist_ok=True)
+            if any("Authority" in item.name or "LicenseAdmin" in item.name or "license-admin" in item.name or "license-server" in item.name
+                   for item in folder.rglob("*")):
+                raise BuildError("Owner-only component leaked into customer package")
             metadata = {"version": version, "runtime": rid, "selfContained": True,
+                        "licenseConfigured": profile is not None,
+                        "licenseIssuer": profile["issuer"] if profile else None,
+                        "requiresOnlineLicense": True,
                         "nativeSmokePassed": tested, "gameRuntimeVerified": False,
                         "acceptance": "engineering-preview; not a completed game translation"}
             write_json(folder / "BUILD-STATUS.json", metadata)
@@ -250,7 +285,7 @@ def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: boo
         promote_directory(staging, destination)
         print(f"Release packages: {destination}")
         return destination
-    except (BuildError, OSError) as exc:
+    except (BuildError, OSError, ValueError) as exc:
         report["status"] = "failed"
         report["error"] = str(exc)
         raise
@@ -265,15 +300,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rids", type=parse_rids, default=list(SUPPORTED_RIDS))
     parser.add_argument("--compile-only", action="store_true", help="Compile and test, but do not publish binaries.")
+    parser.add_argument("--license-trust", type=Path, help="Public production client-trust.json from your issuer; absent means a LOCKED unconfigured preview.")
     args = parser.parse_args()
     dotnet = shutil.which("dotnet")
     if dotnet is None:
         print("ERROR: .NET 9 SDK not found. No binary release was created. Install the SDK, reopen the terminal, then rerun.", file=sys.stderr)
         return 2
     try:
-        build_release(ROOT, args.rids, dotnet, compile_only=args.compile_only)
+        build_release(ROOT, args.rids, dotnet, compile_only=args.compile_only, license_trust=args.license_trust)
         return 0
-    except (BuildError, OSError) as exc:
+    except (BuildError, OSError, ValueError) as exc:
         print(f"BUILD FAILED: {exc}", file=sys.stderr)
         return 1
 

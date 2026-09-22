@@ -1,3 +1,7 @@
+# Лицензирование
+
+Модель угроз и ограничения нового механизма: [docs/LICENSE_SECURITY_RU.md](docs/LICENSE_SECURITY_RU.md). Не отправляйте issuer data, passphrase, owner token или сырые клиентские ключи в issues/logs.
+
 # Security policy
 
 ## Supported versions

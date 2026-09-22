@@ -56,3 +56,13 @@ patched/
 *.pdb
 *.bundle
 *.zip
+
+# Runtime licensing secrets/state: never commit or bundle.
+/LuckyStarPspToolkit/
+**/authority.json
+**/licenses.json
+**/owner-connection.json
+**/*.issue-request.json
+**/*.change.json
+*.pass
+*.key

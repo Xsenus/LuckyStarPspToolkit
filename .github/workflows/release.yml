@@ -47,8 +47,22 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - name: Checked native build, publish and demonstration
-        run: python scripts/build_release.py --rids ${{ matrix.rid }}
+      - name: Materialize PUBLIC issuer configuration
+        env:
+          LSP_PUBLIC_TRUST: ${{ vars.LSP_LICENSE_TRUST_JSON }}
+        shell: python
+        run: |
+          import os, pathlib
+          data = os.environ.get("LSP_PUBLIC_TRUST", "")
+          if not data:
+              raise SystemExit("Set PUBLIC repository variable LSP_LICENSE_TRUST_JSON from client-trust.json; never put authority secrets here")
+          path = pathlib.Path("artifacts/customer-public-trust.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(data, encoding="utf-8")
+      - name: Reject development trust and private issuer files
+        run: python scripts/license_build_profile.py artifacts/customer-public-trust.json
+      - name: Checked native build, licensing lifecycle and configured customer publish
+        run: python scripts/build_release.py --rids ${{ matrix.rid }} --license-trust artifacts/customer-public-trust.json
       - uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.rid }}
@@ -92,4 +106,4 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
             --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease \
             --title "Lucky Star PSP Toolkit ${{ needs.verify-version.outputs.version }} — engineering preview" \
-            --notes "Native CI build/tests and synthetic demo passed. Actual game acceptance is separate. Review THIRD_PARTY_NOTICES.md before making this release public."
+            --notes "Native CI build/tests and synthetic demo passed. Online license activation on the deployed issuer and actual game acceptance are separate. Review THIRD_PARTY_NOTICES.md before making this release public."

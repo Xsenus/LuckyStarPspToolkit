@@ -7,7 +7,7 @@
     "projects and canonical solution are consistent",
     "C# delimiter balance passes token-aware scan",
     "recognized named C# types and methods have XML documentation (offline check)",
-    "source has no sidecar, network, process, or NuGet dependency",
+    "source has no sidecar/process/NuGet dependencies; networking is confined to licensing",
     "repository governance files and checked workflow entry points are present (not executed)",
     "release-hardening optimizations and tests remain present",
     "version metadata is centrally consistent",

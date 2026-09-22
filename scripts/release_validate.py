@@ -123,6 +123,8 @@ def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
             skip(name, '.NET SDK/native target unavailable or preceding source validation failed.')
         if require_dotnet:
             checks.append({'name': 'required-dotnet-sdk', 'status': 'failed', 'reason': 'Required .NET validation was not executed.'})
+    skip('production-license-https-deployment', 'Real VPS/DNS/TLS and long-term service operation are not deployed in this environment.')
+    skip('native-windows-cng-licensing', 'Windows installation-key execution requires the native Windows CI/deployment test.')
     skip('github-hosted-ci', 'Workflow definitions were inspected; remote jobs were not executed here.')
     skip('ppsspp-and-psp-acceptance', 'Original sc.cpk, lt.bin, ISO and game runtime acceptance are not available.')
     counts = {state: sum(c['status'] == state for c in checks) for state in ('passed', 'failed', 'not_run')}

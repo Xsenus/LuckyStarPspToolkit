@@ -44,7 +44,12 @@ public static class CommandApplication
     /// </summary>
     /// <param name="args">The command-line arguments to parse and execute.</param>
     /// <returns>A stable process exit code.</returns>
-    public static int Run(string[] args)
+    public static int Run(string[] args) => LicensedCommandEntry.Run(args);
+
+    /// <summary>Runs command implementations after authorization; friend regression tests exercise parsers without issuing customer grants.</summary>
+    /// <param name="args">Validated or test-supplied command arguments.</param>
+    /// <returns>Original command exit code.</returns>
+    internal static int RunCore(string[] args)
     {
         Console.InputEncoding = Encoding.UTF8;
         Console.OutputEncoding = new UTF8Encoding(false);
@@ -1871,6 +1876,9 @@ public static class CommandApplication
         writer.WriteLine("  lsptool self-test [--json <path|->]");
         writer.WriteLine("  lsptool formats-self-test [--json <path|->]");
         writer.WriteLine("  lsptool version");
+        writer.WriteLine("  lsptool license activate [--key-file <path>]");
+        writer.WriteLine("  lsptool license status|device|forget|build-info|help");
+        writer.WriteLine("  Operational commands require an online license. Contact the owner for a configured customer build.");
         writer.WriteLine();
         writer.WriteLine("The unsafe --allow-unknown-hash alias is retained for compatibility but should not be used for unverified EBOOT revisions.");
         writer.WriteLine("Exit codes: 0 success, 2 incomplete customer input, 3 invalid/unsafe input, 64 usage, 70 software, 74 I/O.");

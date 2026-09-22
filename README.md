@@ -1,13 +1,15 @@
 # Lucky Star PSP Translation Toolkit
 
-Версия **0.13.0** — C#/.NET 9, инженерная предварительная версия инструмента
+Версия **0.14.0** — C#/.NET 9, инженерная предварительная версия инструмента
 для анализа и подготовки переводов PSP Lucky Star.
 
-В этой итерации переработана работа с CPK: общий metadata-only preflight,
-точный no-op, сохранение дополнительных полей DataL/DataH и контролируемые ошибки
-повреждённых offsets/counts. Для списка и извлечения одного файла больше не
-создаются копии всех вложенных ресурсов. Добавлены 11 групп C# регрессий и
-сравнение выделений памяти на одинаковом тестовом архиве.
+В этой итерации добавлено онлайн-лицензирование: отдельный сервер владельца и issuer CLI,
+сроки от часов до бессрочного доступа, лимит установок, активация, продление, приостановка и отзыв.
+Клиент без собственного встроенного издателя/активации блокирует все операции с игровыми данными.
+**Этот полный комплект принадлежит владельцу; клиенту передаются только опубликованные binaries и отдельный ключ.**
+
+[Инструкция владельца](docs/LICENSE_OWNER_RU.md) · [Клиенту](docs/LICENSE_CUSTOMER_RU.md) ·
+[Модель защиты](docs/LICENSE_SECURITY_RU.md) · [Протокол](docs/LICENSE_API.md)
 
 Код компилируется и исполняется в доступной диагностической среде Roslyn/C#13
 (PowerShell, .NET 11 preview). Это **не** штатный .NET 9 SDK/MSBuild, не проверка
@@ -15,7 +17,7 @@ Windows EXE и не приёмка настоящей игры. В постав�
 готовых EXE/DLL, игровых ресурсов или файлов шрифтов.
 
 [Фактические проверки](docs/TEST_REPORT_RU.md) ·
-[Изменения 0.13.0](docs/RELEASE_NOTES_0.13.0_RU.md) ·
+[Изменения 0.14.0](docs/RELEASE_NOTES_0.14.0_RU.md) ·
 [Алгоритм сценариев](docs/SCRIPT_CODEC_RU.md) ·
 [CPK и память](docs/CPK_PERFORMANCE_RU.md) · [Сценарии и память](docs/PERFORMANCE_RU.md)
 
@@ -27,17 +29,17 @@ Windows EXE и не приёмка настоящей игры. В постав�
 
 ```powershell
 python -m pip install -r validation/requirements.txt
-.\build.cmd --rids win-x64
+.\build.cmd --rids win-x64 --license-trust C:\LspOwner\client-trust.json
 ```
 
 По умолчанию `build.cmd` / `./build.sh` создают оба пакета: `win-x64,linux-x64`. Для Linux:
 
 ```bash
 python3 -m pip install -r validation/requirements.txt
-./build.sh --rids linux-x64
+./build.sh --rids linux-x64 --license-trust /secure/client-trust.json
 ```
 
-Сборка последовательно проверяет документацию, генерирует синтетические эталоны, запускает статические проверки, компилирует solution, запускает оба C# self-test проекта и Roslyn-аудит документации, затем публикует и проверяет нативный CLI. Только после успеха формируются ZIP и SHA-256 в `artifacts/releases/0.13.0/`.
+Сборка последовательно проверяет документацию, генерирует синтетические эталоны, запускает статические проверки, компилирует solution, запускает три C# self-test проекта и Roslyn-аудит документации, затем публикует и проверяет нативный CLI. Только после успеха формируются ZIP и SHA-256 в `artifacts/releases/0.14.0/`.
 
 **Если один шаг не прошёл, релиз не считается готовым.** Подробные логи: `artifacts/build-logs/<run-id>/`. Предыдущая успешная папка релиза сохраняется при ошибке до финального продвижения новой папки.
 
@@ -48,6 +50,8 @@ python3 -m pip install -r validation/requirements.txt
 ```text
 lsptool version
 lsptool --help
+lsptool license activate
+lsptool license status
 lsptool self-test
 lsptool collect-assets game.iso lucky-star-assets.zip --include-optional
 lsptool cpk-verify sc.cpk
@@ -55,7 +59,7 @@ lsptool cpk-verify sc.cpk
 
 Полный перечень: [CLI reference](docs/CLI_REFERENCE.md).
 
-## Новое в 0.13.0
+## Сохранённые улучшения CPK из 0.13.0
 
 `CriCpkArchive.Inspect` возвращает только каталог проверенных ranges, `Extract`
 копирует/декодирует один ресурс. CLI использует те же операции. No-op Build
@@ -67,7 +71,7 @@ lsptool cpk-verify sc.cpk
 
 ## Публикация на GitHub
 
-[Инструкция GitHub](docs/GITHUB_PUBLISH_RU.md). Обычный push запускает проверку и сборку пакетов в Windows/Linux. Push тега `v0.13.0`, совпадающего с `VERSION`, после успешной проверки обеих платформ создаёт **draft prerelease** с ZIP и SHA-256. Перевод не объявляется завершённым автоматически.
+[Инструкция GitHub](docs/GITHUB_PUBLISH_RU.md). Обычный push запускает проверку и сборку пакетов в Windows/Linux. Push тега `v0.14.0`, совпадающего с `VERSION`, после успешной проверки обеих платформ создаёт **draft prerelease** с ZIP и SHA-256. Перевод не объявляется завершённым автоматически.
 
 До публичного раскрытия требуется проверка происхождения VWF-профиля и других сторонних технических материалов: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [docs/LICENSING.md](docs/LICENSING.md). Наличие MIT-файла не даёт прав на чужой код, переводы или игровые данные.
 
@@ -81,6 +85,6 @@ lsptool cpk-verify sc.cpk
 
 [Архитектура](docs/ARCHITECTURE.md) · [Форматы](docs/FORMATS.md) · [API](docs/API_REFERENCE.md) · [Разработка](docs/DEVELOPMENT.md) · [Тестирование](docs/TESTING.md) · [Сборка и релизы](docs/BUILD_AND_RELEASE_RU.md) · [Ошибки](docs/TROUBLESHOOTING.md) · [SECURITY.md](SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
 
-### Ограничения карты глифов в 0.13.0
+### Ограничения карты глифов в 0.14.0
 
 Помимо байтового лимита, входной карте задаются предел 1 000 000 UTF-16 единиц и 128 единиц на одну метку глифа. Количество строк и длина меток проверяются до `Split`/построения trie; это предотвращает непропорциональное выделение памяти для огромной строки или миллионов пустых строк. Пределы настраиваются в `FileLimits`. Это защитные ограничения, а не измеренная гарантия расхода RAM или времени.

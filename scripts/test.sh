@@ -15,4 +15,4 @@ fi
 if [ $# -eq 1 ]; then CUSTOMER_ARGS+=(--customer-archive "$(realpath "$1")"); fi
 "$DOTNET" run --project tests/LuckyStarPspToolkit.SelfTests/LuckyStarPspToolkit.SelfTests.csproj -c Release --no-build -- "${CUSTOMER_ARGS[@]}"
 "$DOTNET" run --project tests/LuckyStarPspToolkit.Formats.SelfTests/LuckyStarPspToolkit.Formats.SelfTests.csproj -c Release --no-build -- "${CUSTOMER_ARGS[@]}"
-"$DOTNET" run --project src/LuckyStarPspToolkit.Cli/LuckyStarPspToolkit.Cli.csproj -c Release --no-build -- self-test
+python3 scripts/check_locked_cli.py --dotnet "$DOTNET" --cli "$ROOT/src/LuckyStarPspToolkit.Cli/bin/Release/net9.0/lsptool.dll"

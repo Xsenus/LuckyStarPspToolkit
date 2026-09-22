@@ -6,15 +6,18 @@ Not a production CLI host. Used only by verify_roslyn.py when the .NET SDK is un
 Never invoke this script on an assembly from an untrusted source.
 .PARAMETER Assembly
 Absolute path of the local assembly emitted by compile_with_roslyn.ps1.
-.PARAMETER CliArgs
-Arguments passed unchanged to the managed entry point.
+.NOTES
+All remaining tokens are passed unchanged through the automatic $args variable.
 #>
-param([string]$Assembly,[Parameter(ValueFromRemainingArguments=$true)][string[]]$CliArgs)
+param([string]$Assembly)
+# A simple script (not an advanced function) preserves names such as --out verbatim.
+# PowerShell common-parameter binding must never consume customer CLI options.
+$CliArgs = [string[]]$args
 $ErrorActionPreference='Stop'
 try {
  $directory=[IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Assembly))
  [AppContext]::SetData('APP_CONTEXT_BASE_DIRECTORY',$directory+[IO.Path]::DirectorySeparatorChar)
- foreach($name in @('LuckyStarPspToolkit.Core','LuckyStarPspToolkit.Formats','lsptool')){
+ foreach($name in @('LuckyStarPspToolkit.Licensing','LuckyStarPspToolkit.Licensing.Authority','LuckyStarPspToolkit.Core','LuckyStarPspToolkit.Formats','lsptool')){
   $p=Join-Path $directory ($name+'.dll')
   if([IO.File]::Exists($p)){[void][Runtime.Loader.AssemblyLoadContext]::Default.LoadFromAssemblyPath($p)}
  }

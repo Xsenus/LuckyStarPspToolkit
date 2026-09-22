@@ -5,7 +5,11 @@
     <RootNamespace>LuckyStarPspToolkit.Cli</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../LuckyStarPspToolkit.Licensing/LuckyStarPspToolkit.Licensing.csproj" />
     <ProjectReference Include="../LuckyStarPspToolkit.Core/LuckyStarPspToolkit.Core.csproj" />
     <ProjectReference Include="../LuckyStarPspToolkit.Formats/LuckyStarPspToolkit.Formats.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(LicenseTrustFile)' != ''">
+    <EmbeddedResource Include="$(LicenseTrustFile)" LogicalName="LuckyStarPspToolkit.license-trust.json" />
   </ItemGroup>
 </Project>

@@ -10,15 +10,14 @@ TXT
 
 [[ $# -ge 2 && $# -le 4 ]] || usage
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-DOTNET=$("$ROOT/scripts/resolve-dotnet.sh")
+VERSION=$(tr -d '\r\n' < "$ROOT/VERSION")
+CLI="$ROOT/artifacts/releases/$VERSION/linux-x64/lsptool"
+[[ -x "$CLI" ]] || { echo "Build and activate the configured Linux release first." >&2; exit 77; }
 ISO=$(realpath "$1")
 MANIFEST=$(realpath "$2")
 OUTPUT=$(realpath -m "${3:-$PWD/LuckyStar-patched.iso}")
 REPORT=$(realpath -m "${4:-$OUTPUT.json}")
 
-"$DOTNET" run \
-  --project "$ROOT/src/LuckyStarPspToolkit.Cli/LuckyStarPspToolkit.Cli.csproj" \
-  -c Release -- \
-  iso-apply-manifest "$ISO" "$MANIFEST" "$OUTPUT" --json "$REPORT"
+"$CLI" iso-apply-manifest "$ISO" "$MANIFEST" "$OUTPUT" --json "$REPORT"
 
 printf 'Created: %s\nReport:  %s\n' "$OUTPUT" "$REPORT"
