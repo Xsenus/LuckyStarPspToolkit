@@ -110,8 +110,9 @@ public sealed class LicenseWebServer : IAsyncDisposable
                 result = path switch
                 {
                     "/api/session" => SessionView(session),
+                    "/api/sessions" => authentication.ListSessions(sessionId),
                     "/api/licenses" => authority.List(),
-                    "/api/audit" => authority.Audit().TakeLast(500).Reverse().ToArray(),
+                    "/api/audit" => authority.AuditRecent(),
                     "/api/reserve" => authority.ReserveStatus(),
                     _ => throw new LicenseException("WEB_NOT_FOUND", "Unknown browser endpoint.")
                 };
@@ -135,6 +136,8 @@ public sealed class LicenseWebServer : IAsyncDisposable
                         case "/api/logout":
                             _ = LicenseJson.Read<Dictionary<string, string>>(body);
                             authentication.Logout(sessionId); SetCookie(response, "", true); result = new { ok = true }; break;
+                        case "/api/sessions/revoke":
+                            result = new { revoked = authentication.RevokeSessions(sessionId, csrf, LicenseJson.Read<WebSessionRevokeRequest>(body)) }; break;
                         case "/api/reauth":
                             authentication.Reauthenticate(sessionId, csrf, LicenseJson.Read<WebLoginRequest>(body), source);
                             result = new { ok = true }; break;

@@ -245,6 +245,27 @@ def main() -> int:
             assert context.request.get(origin + '/admin/licenses').status == 404
             assert context.request.get(origin + '/authority.json').status == 404
             record('cross-origin-private-api-and-file-path-blocked')
+            # A second real HTTP session is independent of the browser/bridge cookie jar.
+            secondary = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+            second_login = urllib.request.Request(origin + '/api/login', method='POST',
+                headers={'Origin': origin, 'Content-Type': 'application/json'},
+                data=json.dumps({'username':'owner','password':password,'code':enrollment['recoveryCodes'][7]}).encode())
+            with secondary.open(second_login, timeout=15) as answer:
+                assert answer.status == 200
+            page.get_by_role('button', name='Обновить', exact=True).click()
+            page.get_by_role('button', name='Сессии владельца', exact=True).click()
+            expect(page.get_by_role('heading', name='Активные сессии', exact=True)).to_be_visible()
+            expect(page.get_by_text('Другой браузер', exact=True)).to_be_visible()
+            page.get_by_role('button', name='Завершить остальные', exact=True).click()
+            expect(page.get_by_text('Другой браузер', exact=True)).to_have_count(0)
+            expect(page.get_by_text('Текущий браузер', exact=True)).to_be_visible()
+            try:
+                secondary.open(origin + '/api/session', timeout=15)
+                raise AssertionError('Revoked secondary cookie still authorizes requests')
+            except urllib.error.HTTPError as denial:
+                assert denial.code == 401
+            page.screenshot(path=str(out / 'admin-sessions.png'), full_page=True)
+            record('react-revokes-other-real-session-current-survives')
             page.get_by_role('button', name='Выдать ключ', exact=True).click()
             page.get_by_label('Клиент / примечание').fill('Тестовый заказчик')
             page.get_by_label('Срок', exact=True).select_option('permanent')

@@ -82,6 +82,18 @@ internal static class LicensingTests
             Test("HTTP proxy errors map to bounded retries", LicensingHardeningTests.ProxyTransientErrors);
             Test("HTTP success still requires valid protocol", LicensingHardeningTests.ProxyInvalidSuccess);
             Test("proxy overload cannot extend lease or revoke it early", LicensingHardeningTests.ProxySessionExpiry);
+            Test("reserve/session regression ExpirySurvivesRestart", ReserveSafetyTests.ExpirySurvivesRestart);
+            Test("reserve/session regression RollbackSurvivesRestart", ReserveSafetyTests.RollbackSurvivesRestart);
+            Test("reserve/session regression FreshTokenRecoversExpiry", ReserveSafetyTests.FreshTokenRecoversExpiry);
+            Test("reserve/session regression DenialWriteFailure", ReserveSafetyTests.DenialWriteFailure);
+            Test("reserve/session regression ResetDoesNotReviveReserve", ReserveSafetyTests.ResetDoesNotReviveReserve);
+            Test("reserve/session regression ResetScope", ReserveSafetyTests.ResetScope);
+            Test("reserve/session regression ReserveProofAndNonce", ReserveSafetyTests.ReserveProofAndNonce);
+            Test("reserve/session regression AuditTail", ReserveSafetyTests.AuditTail);
+            Test("reserve/session regression SessionPrivacy", ReserveSafetyTests.SessionPrivacy);
+            Test("reserve/session regression SessionRevokeOthers", ReserveSafetyTests.SessionRevokeOthers);
+            Test("reserve/session regression SessionRevokeGuards", ReserveSafetyTests.SessionRevokeGuards);
+            Test("reserve/session regression SessionInventoryExpiration", ReserveSafetyTests.SessionInventoryExpiration);
             Test("reserve/web DefaultOff", WebReserveTests.DefaultOff);
             Test("reserve/web ActivationRequired", WebReserveTests.ActivationRequired);
             Test("reserve/web HourBounds", WebReserveTests.HourBounds);

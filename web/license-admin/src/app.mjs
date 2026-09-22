@@ -86,12 +86,33 @@ function LicenseTable({ filtered, current, pages, search, status, setSearch, set
 function AuditTable({ audit }) {
     return h('section', { className: 'card' }, h('h2', null, 'Последние 500 событий'), h('div', { className: 'table-wrap' }, h('table', null, h('thead', null, h('tr', null, ...['Время', 'Действие', 'Лицензия'].map(x => h('th', { key: x }, x)))), h('tbody', null, ...audit.map((x, i) => h('tr', { key: i }, h('td', null, dateText(x.at)), h('td', null, x.action), h('td', null, h('code', null, x.licenseId || 'Глобальная настройка'))))))));
 }
+/** Review independent session handles and close other browsers; no authentication cookies are exposed. */
+function SessionsPanel({ sessions, session, run, refresh }) {
+    /** Close selected/all-other sessions after explicit confirmation; repeated revocation is harmless. */
+    async function close(target, others = false) {
+        if (!confirm(others ? 'Завершить все другие сессии владельца?' : 'Завершить выбранную сессию?')) return;
+        await run(async () => {
+            await requestApi('/sessions/revoke', { sessionId: target, others }, session.csrfToken);
+            await refresh();
+        });
+    }
+    return h('section', { className: 'card' }, h('h2', null, 'Активные сессии'),
+        h('p', { className: 'muted' }, 'Только браузеры владельца. Это не установки клиентов. Отзыв требует свежего подтверждения входа.'),
+        h(Button, { onClick: () => close('', true), disabled: sessions.length < 2 }, 'Завершить остальные'),
+        h('div', { className: 'table-wrap' }, h('table', null,
+            h('thead', null, h('tr', null, ...['Сессия', 'Возраст', 'Без активности', ''].map(x => h('th', { key: x }, x)))),
+            h('tbody', null, ...sessions.map(x => h('tr', { key: x.id },
+                h('td', null, h('strong', null, x.current ? 'Текущий браузер' : 'Другой браузер'), h('code', null, x.id)),
+                h('td', null, Math.floor(x.ageSeconds / 60) + ' мин'), h('td', null, x.idleSeconds + ' с'),
+                h('td', null, h(Button, { onClick: () => close(x.id), disabled: x.current }, 'Завершить'))))))));
+}
 /** Main authenticated shell. No credentials in URL/localStorage; session failures remove the authenticated subtree. */
 function ConsoleApp({ session, onLogout }) {
     const [tab, setTab] = useState('licenses');
     const [licenses, setLicenses] = useState([]);
     const [policy, setPolicy] = useState({ enabled: false, epoch: 0, grants: [] });
     const [audit, setAudit] = useState([]);
+    const [sessions, setSessions] = useState([]);
     const [selected, setSelected] = useState('');
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('');
@@ -104,10 +125,11 @@ function ConsoleApp({ session, onLogout }) {
     const mounted = useRef(true);
     /** Load current server state only on user activity, not a heartbeat that would defeat idle expiry. */
     /** Refresh bounded owner lists without silently renewing browser activity in a timer. */
-    async function refresh() { const [a, b, c] = await Promise.all([requestApi('/licenses'), requestApi('/reserve'), requestApi('/audit')]); if (mounted.current) {
+    async function refresh() { const [a, b, c, d] = await Promise.all([requestApi('/licenses'), requestApi('/reserve'), requestApi('/audit'), requestApi('/sessions')]); if (mounted.current) {
         setLicenses(a);
         setPolicy(b);
         setAudit(c);
+        setSessions(d);
         setLast(new Date());
     } }
     /** Serialize foreground operations and translate session/fresh-MFA failures without repeating side effects. */
@@ -137,8 +159,8 @@ function ConsoleApp({ session, onLogout }) {
     const pages = Math.max(1, Math.ceil(filtered.length / 25));
     const current = Math.min(page, pages - 1);
     const item = licenses.find(x => x.id === selected);
-    const aside = h('aside', null, h('div', { className: 'brand' }, h('span', { className: 'brand-mark' }, 'L'), h('div', null, h('strong', null, 'LSP LICENSES'), h('small', null, 'Панель владельца'))), h('nav', null, ...[['licenses', 'Лицензии'], ['issue', 'Выдать ключ'], ['reserve', 'Резервный доступ'], ['audit', 'Журнал действий']].map(([key, text]) => h(Button, { key, className: tab === key ? 'nav active' : 'nav', disabled: busy, onClick: () => setTab(key) }, text))), h('div', { className: 'aside-note' }, 'Нет вечного мастер-ключа.', h('br'), 'Резерв: максимум 168 часов.', h('br'), 'Не публикуйте каталог authority.'));
-    const header = h('header', null, h('div', null, h('div', { className: 'eyebrow' }, 'OWNER / CONTROL CENTER'), h('h1', null, { licenses: 'Лицензии', issue: 'Новый доступ', reserve: 'Резервный доступ', audit: 'Журнал действий' }[tab])), h('div', { className: 'actions' }, h('span', { className: 'muted' }, session.username), h(Button, { onClick: () => setReauth(true) }, 'Подтвердить вход'), h(Button, { onClick: () => run(async () => { await requestApi('/logout', {}, session.csrfToken); clearPendingMutations(); onLogout(); }) }, 'Выйти')));
+    const aside = h('aside', null, h('div', { className: 'brand' }, h('span', { className: 'brand-mark' }, 'L'), h('div', null, h('strong', null, 'LSP LICENSES'), h('small', null, 'Панель владельца'))), h('nav', null, ...[['licenses', 'Лицензии'], ['issue', 'Выдать ключ'], ['reserve', 'Резервный доступ'], ['audit', 'Журнал действий'], ['sessions', 'Сессии владельца']].map(([key, text]) => h(Button, { key, className: tab === key ? 'nav active' : 'nav', disabled: busy, onClick: () => setTab(key) }, text))), h('div', { className: 'aside-note' }, 'Нет вечного мастер-ключа.', h('br'), 'Резерв: максимум 168 часов.', h('br'), 'Не публикуйте каталог authority.'));
+    const header = h('header', null, h('div', null, h('div', { className: 'eyebrow' }, 'OWNER / CONTROL CENTER'), h('h1', null, { licenses: 'Лицензии', issue: 'Новый доступ', reserve: 'Резервный доступ', audit: 'Журнал действий', sessions: 'Сессии владельца' }[tab])), h('div', { className: 'actions' }, h('span', { className: 'muted' }, session.username), h(Button, { onClick: () => setReauth(true) }, 'Подтвердить вход'), h(Button, { onClick: () => run(async () => { await requestApi('/logout', {}, session.csrfToken); clearPendingMutations(); onLogout(); }) }, 'Выйти')));
     const stats = h('div', { className: 'stats' }, ...[[licenses.length, 'Всего'], [licenses.filter(x => x.status === 'active').length, 'Активны'], [licenses.filter(x => x.status === 'pending').length, 'Ожидают'], [policy.enabled ? 'ON' : 'OFF', 'Резервная система']].map(([value, label]) => h('div', { className: 'stat', key: label }, h('strong', null, value), h('span', null, label))));
     let content;
     if (tab === 'licenses')
@@ -147,9 +169,11 @@ function ConsoleApp({ session, onLogout }) {
         content = h(IssuePanel, { session, run, refresh });
     else if (tab === 'reserve')
         content = h(ReservePanel, { policy, licenses, session, run, refresh });
+    else if (tab === 'sessions')
+        content = h(SessionsPanel, { sessions, session, run, refresh });
     else
         content = h(AuditTable, { audit });
-    return h('div', { className: 'shell' }, aside, h('main', null, header, stats, h('div', { className: 'toolbar' }, h('span', { className: 'muted small' }, last ? 'Обновлено ' + last.toLocaleTimeString('ru-RU') : 'Загрузка…'), h(Button, { onClick: () => run(refresh), disabled: busy }, 'Обновить')), error && h('p', { className: 'error', role: 'alert' }, error), busy && h('p', { role: 'status', className: 'muted' }, 'Операция выполняется…'), reauth && h('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Повторное подтверждение' }, h(Credentials, { session, reauth: true, onSuccess: () => { setReauth(false); setError(''); }, onCancel: () => setReauth(false) })), h('fieldset', { className: 'content', disabled: busy }, content), h('footer', null, '0.16.0 · Только владелец · Ключи передаются отдельно · Время в часовом поясе браузера')));
+    return h('div', { className: 'shell' }, aside, h('main', null, header, stats, h('div', { className: 'toolbar' }, h('span', { className: 'muted small' }, last ? 'Обновлено ' + last.toLocaleTimeString('ru-RU') : 'Загрузка…'), h(Button, { onClick: () => run(refresh), disabled: busy }, 'Обновить')), error && h('p', { className: 'error', role: 'alert' }, error), busy && h('p', { role: 'status', className: 'muted' }, 'Операция выполняется…'), reauth && h('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Повторное подтверждение' }, h(Credentials, { session, reauth: true, onSuccess: () => { setReauth(false); setError(''); }, onCancel: () => setReauth(false) })), h('fieldset', { className: 'content', disabled: busy }, content), h('footer', null, '0.17.0 · Только владелец · Ключи передаются отдельно · Время в часовом поясе браузера')));
 }
 /** Session bootstrap exposes no API token and removes authenticated UI after logout. */
 function App() { const [session, setSession] = useState(null); const [loading, setLoading] = useState(true); useEffect(() => { requestApi('/session').then(setSession).catch(() => { }).finally(() => setLoading(false)); }, []); if (loading)

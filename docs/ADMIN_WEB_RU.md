@@ -1,4 +1,4 @@
-# React-панель владельца · 0.16.0
+# React-панель владельца · 0.17.0
 
 Это owner-only компонент. Заказчик получает только клиентский ZIP и ключ, но не исходники,
 сервер, админку, каталог authority, MFA enrollment или Git bundle. Развёртывание предполагается
@@ -30,7 +30,7 @@ node web/license-admin/build.mjs
 py -3 scripts/build_license_owner.py --rids linux-x64,win-x64
 ```
 
-При успехе owner ZIP находится в `artifacts/owner-releases/0.16.0/`.
+При успехе owner ZIP находится в `artifacts/owner-releases/0.17.0/`.
 Внутри каждой платформы `server/`, `admin/`, `web/`, `docs/`, `deploy/`.
 Frontend использует закреплённые MIT production-модули React с проверкой SHA-256;
 Node нужен при сборке, но **не при работе** сервера. CDN, npm install и Vite runtime не нужны.
@@ -162,3 +162,7 @@ server-clock.json, signing key или установки клиентов. Ст�
 Проверьте production HTTPS, cookie Secure/HttpOnly/SameSite в браузере, блокировку запросов без CSRF,
 выход/истечение сессии, вход с новым TOTP, одноразовость recovery и обновление сервера с сохранением
 лицензий. Реальный VPS/DNS/TLS и Windows CNG здесь не развёрнуты за владельца.
+
+## Изменения 0.17.0
+
+См. [Резерв и сессии](RESERVE_SESSION_HARDENING_RU.md). Добавлена вкладка «Сессии владельца» с завершением других входов. Обновляйте backend и web одновременно. При переходе с **0.16.0** не повторяйте web-init: существующие пароль, TOTP и recovery-коды сохраняются; схема 3 не меняется.

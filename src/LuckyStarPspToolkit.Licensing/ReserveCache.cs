@@ -9,7 +9,8 @@ namespace LuckyStarPspToolkit.Licensing;
 /// <param name="EffectiveUtc">Last accepted effective server time.</param>
 /// <param name="LocalUtc">Local wall-clock observation at that checkpoint.</param>
 /// <param name="Blocked">Sticky denial learned from an authenticated online exchange; never cleared by an offline read.</param>
-internal sealed record ReserveState(int Schema, string Token, string GrantId, long EffectiveUtc, long LocalUtc, bool Blocked);
+/// <param name="BlockReason">Sticky local clock/expiry reason; empty for an ordinary online denial and older caches.</param>
+internal sealed record ReserveState(int Schema, string Token, string GrantId, long EffectiveUtc, long LocalUtc, bool Blocked, string BlockReason = "");
 
 /// <summary>Compact signed-state envelope. The installation key is a different trust domain from authority signing.</summary>
 /// <param name="Payload">Base64 encoded local state.</param>
@@ -58,7 +59,8 @@ public sealed class ReserveCache
         if (!identity.VerifyLocalState(bytes, envelope.Signature)) throw new LicenseException("RESERVE_CACHE", "Reserve state was changed or belongs to another installation.");
         state = LicenseJson.Read<ReserveState>(bytes, 10000);
         lease = ReserveCrypto.Verify(state.Token, trust, identity, licenseId, state.GrantId);
-        if (state.Schema != 1 || state.EffectiveUtc < lease.ServerNow || state.LocalUtc < 0)
+        if (state.Schema != 1 || state.EffectiveUtc < lease.ServerNow || state.LocalUtc < 0 ||
+            state.BlockReason is not ("" or "RESERVE_EXPIRED" or "RESERVE_CLOCK") || (!state.Blocked && state.BlockReason != ""))
             throw new LicenseException("RESERVE_CACHE", "Invalid reserve clock checkpoint.");
         anchor = this.time.GetTimestamp(); anchorUtc = state.EffectiveUtc; wallHigh = state.LocalUtc;
     }
@@ -97,13 +99,15 @@ public sealed class ReserveCache
     {
         lock (sync)
         {
-            if (state is null || lease is null || state.Blocked) throw new LicenseException("RESERVE_UNAVAILABLE", "No valid reserve permission is configured.");
+            if (state is null || lease is null) throw new LicenseException("RESERVE_UNAVAILABLE", "No valid reserve permission is configured.");
+            if (state.Blocked) throw new LicenseException(state.BlockReason == "" ? "RESERVE_UNAVAILABLE" : state.BlockReason,
+                "Reserve access was denied locally. Reconnect for fresh authorization.");
             long wall = time.GetUtcNow().ToUnixTimeSeconds();
-            if (wall < wallHigh) throw new LicenseException("RESERVE_CLOCK", "Local clock moved backwards. Reconnect to renew permission.");
+            if (wall < wallHigh) Retire("RESERVE_CLOCK", "Local clock moved backwards. Reconnect to renew permission.");
             wallHigh = wall;
             double effective = Math.Max(state.EffectiveUtc + (double)(wall - state.LocalUtc),
                 anchorUtc + time.GetElapsedTime(anchor).TotalSeconds);
-            if (effective >= lease.ValidUntil) throw new LicenseException("RESERVE_EXPIRED", "Seven-day or shorter reserve deadline has expired; reconnect.");
+            if (effective >= lease.ValidUntil) Retire("RESERVE_EXPIRED", "Seven-day or shorter reserve deadline has expired; reconnect.");
             if (checkpoint && effective > state.EffectiveUtc)
             {
                 var candidate = state with { EffectiveUtc = (long)Math.Ceiling(effective), LocalUtc = wall };
@@ -111,7 +115,7 @@ public sealed class ReserveCache
             }
             // Round checkpoints upward: short process restarts must not recover a discarded fractional second.
             effective = Math.Max(effective, state.EffectiveUtc);
-            if (effective >= lease.ValidUntil) throw new LicenseException("RESERVE_EXPIRED", "Reserve deadline has expired; reconnect.");
+            if (effective >= lease.ValidUntil) Retire("RESERVE_EXPIRED", "Reserve deadline has expired; reconnect.");
             return TimeSpan.FromSeconds(lease.ValidUntil - effective);
         }
     }
@@ -123,8 +127,20 @@ public sealed class ReserveCache
         {
             if (state is null || state.Blocked) return;
             var candidate = state with { Blocked = true };
-            Persist(candidate); state = candidate;
+            state = candidate; Persist(candidate);
         }
+    }
+
+    /// <summary>Retires a known-invalid token even on a read-only timer check, preventing a later restart from reviving it.</summary>
+    /// <param name="code">Observed expiry or clock rollback; never a transient network failure.</param>
+    /// <param name="message">Safe diagnostic explaining why online renewal is required.</param>
+    private void Retire(string code, string message)
+    {
+        // Memory is denied first: failed disk persistence must not grant access to a racing caller.
+        var candidate = state! with { Blocked = true, BlockReason = code };
+        state = candidate;
+        Persist(candidate);
+        throw new LicenseException(code, message);
     }
 
     /// <summary>Updates the cache online; explicit reserve retirement blocks fallback but leaves normal online entitlement independent.</summary>

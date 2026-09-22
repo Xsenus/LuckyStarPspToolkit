@@ -137,13 +137,27 @@ public sealed partial class LicenseAuthority : IDisposable
     /// <returns>Signed execution lease, never an unsigned boolean permission.</returns>
     public LeaseResponse Authorize(LicenseRequest request)
     {
+        VerifyPossession(request);
+        lock (sync) return new(LicenseCrypto.SignLease(AuthorizeVerified(request), signer));
+    }
+
+    /// <summary>Checks installation possession before entering the state mutation lock; challenge consumption remains inside it.</summary>
+    /// <param name="request">Untrusted proof over the canonical transcript.</param>
+    private static void VerifyPossession(LicenseRequest request)
+    {
         byte[] transcript = LicenseCrypto.Transcript(request);
         byte[] proof = LicenseCrypto.Decode(request.Proof, 64, 64);
         using ECDsa verifier = LicenseCrypto.ImportPublic(request.DevicePublicKey);
         if (!verifier.VerifyData(transcript, proof, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation))
             throw new LicenseException("DEVICE_PROOF", "Installation proof is invalid.");
+    }
+
+    /// <summary>Consumes one verified request and computes execution claims without producing a redundant signature for reserve renewal.</summary>
+    /// <param name="request">Possession-verified request; the caller must hold the authority lock.</param>
+    /// <returns>Entitlement claims after every nonce, installation, status and time precondition.</returns>
+    private ExecutionLease AuthorizeVerified(LicenseRequest request)
+    {
         string deviceId = LicenseCrypto.DeviceId(request.DevicePublicKey);
-        lock (sync)
         {
             long now = Now();
             if (!challenges.Remove(request.Challenge, out Challenge? challenge) || challenge.Until <= now ||
@@ -186,8 +200,8 @@ public sealed partial class LicenseAuthority : IDisposable
                 throw new LicenseException("DEVICE_NOT_ACTIVATED", "This installation is not activated.");
             RequireActive(license, now);
             long until = Math.Min(now + config.LeaseSeconds, license.ExpiresAt ?? long.MaxValue);
-            return new(LicenseCrypto.SignLease(new(1, config.Issuer, LicenseCrypto.Product, license.Id, deviceId,
-                request.HostBinding, request.ClientNonce, request.Action, now, until, license.ExpiresAt), signer));
+            return new(1, config.Issuer, LicenseCrypto.Product, license.Id, deviceId,
+                request.HostBinding, request.ClientNonce, request.Action, now, until, license.ExpiresAt);
         }
     }
 
@@ -271,6 +285,13 @@ public sealed partial class LicenseAuthority : IDisposable
                         var devices = new Dictionary<string, LicensedDevice>(record.Devices, StringComparer.Ordinal);
                         if (!devices.Remove(request.DeviceId)) throw new LicenseException("DEVICE_UNKNOWN", "Installation not found.");
                         record = record with { Devices = devices };
+                        // Reset is an owner revocation of this installation, not permission to reuse its historical offline grants.
+                        foreach (var grant in db.ReserveGrants.Values.Where(g => g.LicenseId == record.Id &&
+                            g.DeviceId == request.DeviceId && !g.RevokedAt.HasValue).ToArray())
+                        {
+                            db.ReserveGrants[grant.Id] = grant with { RevokedAt = now };
+                            db.Audit.Add(new(now, "reserve-revoke", record.Id, request.DeviceId));
+                        }
                         break;
                 }
                 db.Licenses[record.Id] = record;
@@ -313,6 +334,21 @@ public sealed partial class LicenseAuthority : IDisposable
     /// <summary>Exports the owner audit trail; reads never include credentials or private key material.</summary>
     /// <returns>Detached audit array.</returns>
     public LicenseAudit[] Audit() => store.ReadCommitted(db => db.Audit.ToArray());
+
+    /// <summary>Returns at most 500 newest events without cloning the complete historical audit list.</summary>
+    /// <param name="limit">Requested maximum in the inclusive range 1..500.</param>
+    /// <returns>Detached immutable records in reverse insertion order, including equal-timestamp events.</returns>
+    public LicenseAudit[] AuditRecent(int limit = 500)
+    {
+        if (limit is < 1 or > 500) throw new LicenseException("AUDIT_LIMIT", "Use an audit limit of 1..500.");
+        return store.ReadCommitted(db =>
+        {
+            int count = Math.Min(limit, db.Audit.Count);
+            var result = new LicenseAudit[count];
+            for (int i = 0; i < count; i++) result[i] = db.Audit[db.Audit.Count - 1 - i];
+            return result;
+        });
+    }
 
     /// <summary>Computes an owner overview without mutating authoritative state.</summary>
     /// <param name="record">Committed entitlement.</param>

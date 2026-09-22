@@ -134,10 +134,11 @@ public sealed partial class LicenseAuthority
     {
         ValidateUuid(request.GrantId);
         if (request.Request.Action != "check") throw new LicenseException("REQUEST_INVALID", "Reserve renewal requires an activated installation check.");
+        VerifyPossession(request.Request);
         lock (sync)
         {
-            _ = Authorize(request.Request); // consumes the nonce and validates the current parent entitlement atomically with signing below
-            long now = Now();
+            ExecutionLease authorization = AuthorizeVerified(request.Request); // same checks, no unused LSP1 token/signature
+            long now = authorization.ServerNow;
             return store.ReadCommitted(db =>
             {
                 if (!db.ReserveEnabled) throw new LicenseException("RESERVE_DISABLED", "Reserve access is disabled globally.");

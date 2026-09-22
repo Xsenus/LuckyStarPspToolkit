@@ -37,7 +37,7 @@ public sealed record WebAdminSetup(string Username, string Origin, string TotpSe
 public sealed record WebSession(string SessionId, string CsrfToken, string Username);
 
 /// <summary>Single-owner browser authentication: PBKDF2, replay-resistant TOTP, one-use recovery, expiring opaque sessions and exact CSRF.</summary>
-public sealed class WebAdminAuthentication : IDisposable
+public sealed partial class WebAdminAuthentication : IDisposable
 {
     /// <summary>Session idle limit; activity does not extend the absolute eight-hour lifetime.</summary>
     public static readonly TimeSpan IdleLimit = TimeSpan.FromMinutes(15);
@@ -65,7 +65,8 @@ public sealed class WebAdminAuthentication : IDisposable
     /// <param name="Created">Monotonic creation time.</param>
     /// <param name="Seen">Last activity.</param>
     /// <param name="Authenticated">Last password plus MFA verification.</param>
-    private sealed record SessionEntry(WebSession View, long Created, long Seen, long Authenticated);
+    /// <param name="ManagementId">Independent public handle; never accepted as an authentication cookie.</param>
+    private sealed record SessionEntry(WebSession View, long Created, long Seen, long Authenticated, string ManagementId);
     /// <summary>Per-source fixed login window.</summary>
     /// <param name="Started">Monotonic start.</param>
     /// <param name="Count">Attempts including successful ones.</param>
@@ -162,7 +163,7 @@ public sealed class WebAdminAuthentication : IDisposable
             Authenticate(request);
             long now = time.GetTimestamp();
             var view = new WebSession(LicenseCrypto.Nonce(), LicenseCrypto.Nonce(), account.Username);
-            sessions.Add(view.SessionId, new(view, now, now, now)); return view;
+            sessions.Add(view.SessionId, new(view, now, now, now, Guid.NewGuid().ToString("D"))); return view;
         }
     }
 

@@ -1,3 +1,11 @@
+# 0.17.0
+
+Durable offline expiry/rollback denials; atomic retirement of reserve grants on device reset;
+owner browser-session inventory and MFA/CSRF-protected revocation. Remove discarded execution
+signatures during reserve renewal; bounded audit tail; streaming bounded UTF-8 web responses;
+immutable single-flight mutation retries isolated across authentication contexts. Twelve new
+C# groups and eight Node tests. See docs/RELEASE_NOTES_0.17.0_RU.md.
+
 # 0.16.0
 
 React owner console, MFA и резерв до 7 дней. См. docs/RELEASE_NOTES_0.16.0_RU.md
