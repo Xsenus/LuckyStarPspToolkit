@@ -45,7 +45,7 @@ jobs:
       - name: Checked build, licensing lifecycle, licensed synthetic demo and LOCKED preview
         run: python scripts/build_release.py --rids ${{ matrix.rid }}
       - name: Upload validated packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: preview-${{ matrix.rid }}
           path: |
@@ -55,7 +55,7 @@ jobs:
           if-no-files-found: error
       - name: Upload diagnostic logs (also after failure)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: logs-${{ matrix.rid }}
           path: |
@@ -90,7 +90,7 @@ jobs:
         run: python scripts/web_reserve_integration.py --output artifacts/browser-ci
       - name: Upload redacted browser evidence only
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: owner-browser-evidence
           path: |
