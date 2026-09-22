@@ -153,6 +153,8 @@ def validate_source_policy() -> None:
         'src/LuckyStarPspToolkit.Licensing/LicenseTransport.cs',
         'src/LuckyStarPspToolkit.LicenseAdmin/Program.cs',
         'tests/LuckyStarPspToolkit.Licensing.SelfTests/Program.cs',
+        # Reviewed actual-loopback HTTP admission tests; no external service or game network access.
+        'tests/LuckyStarPspToolkit.Licensing.SelfTests/WebHttpAdmissionTests.cs',
     }
     for path in source_files:
         if 'HttpClient(' in path.read_text(encoding='utf-8') and path.relative_to(ROOT).as_posix() not in network_allowlist:

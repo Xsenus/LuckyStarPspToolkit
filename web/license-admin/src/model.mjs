@@ -167,3 +167,20 @@ export function createOwnerPager(path, csrf, sender = requestApi, defaults = {})
         }
     };
 }
+
+/** Explain bounded MFA admission errors without retrying credentials automatically or treating failed authentication as success. */
+export function ownerAuthMessage(error, reauth = false) {
+    switch (error?.code) {
+        case 'WEB_BUSY': return 'Проверка уже выполняется. Повторите попытку через секунду. Действующие сессии не закрыты.';
+        case 'WEB_RATE_LIMIT': return reauth
+            ? 'Исчерпан лимит подтверждений этой сессии. Подождите до пяти минут или войдите заново. Смена адреса не сбрасывает лимит.'
+            : 'Слишком много попыток входа с этого адреса. Подождите до пяти минут. Уже открытая сессия может продолжать работу.';
+        case 'WEB_AUTH_FAILED': return 'Неверный логин, пароль или одноразовый код. Проверьте данные и используйте новый код.';
+        case 'WEB_UNAUTHORIZED': return 'Сессия истекла или завершена. Закройте подтверждение и войдите заново.';
+        case 'WEB_CLOSED': return 'Сервер входа остановлен. Дождитесь его запуска и выполните новый вход.';
+        case 'WEB_REAUTH_REQUIRED': return 'Требуется пароль и новый одноразовый код для подтверждения действия.';
+        default: return error?.name === 'AbortError'
+            ? 'Ответ на вход не получен. При новой попытке используйте свежий одноразовый код.'
+            : 'Не удалось подтвердить вход. Проверьте соединение и состояние сервера; автоматических повторов нет.';
+    }
+}

@@ -95,7 +95,7 @@ internal static class WebReserveTests
     /// <summary>Existing account and insecure/wildcard deployment origins are never silently overwritten.</summary>
     public static void SetupSafety() {using var f=new Fixture();foreach(var origin in new[]{"http://admin.example","https://admin.example/","https://admin.example/path","https://admin.example?x=1"})Reject("WEB_ORIGIN",()=>WebAdminAuthentication.Initialize(f.Directory,"owner",f.Password,origin));Setup(f);Reject("WEB_EXISTS",()=>Setup(f));}
     /// <summary>Concurrent use of one recovery code authorizes exactly one browser session.</summary>
-    public static void ConcurrentRecovery() {using var f=new Fixture();var setup=Setup(f);using var auth=new WebAdminAuthentication(f.Directory,f.Time);int success=0;Parallel.For(0,4,_=>{try{auth.Login(new("owner",f.Password,setup.RecoveryCodes[0]),"source");Interlocked.Increment(ref success);}catch(LicenseException ex)when(ex.Code=="WEB_AUTH_FAILED"){} });Check(success==1);}
+    public static void ConcurrentRecovery() {using var f=new Fixture();var setup=Setup(f);using var auth=new WebAdminAuthentication(f.Directory,f.Time);int success=0;Parallel.For(0,4,_=>{try{auth.Login(new("owner",f.Password,setup.RecoveryCodes[0]),"source");Interlocked.Increment(ref success);}catch(LicenseException ex)when(ex.Code is "WEB_AUTH_FAILED" or "WEB_BUSY"){} });Check(success==1);}
 
     /// <summary>A refused bootstrap destination never creates an account whose second factor was not delivered.</summary>
     public static void EnrollmentFailure()

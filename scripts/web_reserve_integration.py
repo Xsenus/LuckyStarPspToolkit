@@ -395,7 +395,7 @@ def main() -> int:
             page.get_by_label('Пароль', exact=True).fill(password)
             page.get_by_label('Код TOTP или код восстановления').fill(enrollment['recoveryCodes'][3])
             page.get_by_role('button', name='Войти', exact=True).click()
-            expect(page.get_by_role('alert')).to_contain_text('Повторно использованный', timeout=15000)
+            expect(page.get_by_role('alert')).to_contain_text('Неверный логин, пароль или одноразовый код', timeout=15000)
             login(enrollment['recoveryCodes'][4])
             page.set_viewport_size({'width':390,'height':844})
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')

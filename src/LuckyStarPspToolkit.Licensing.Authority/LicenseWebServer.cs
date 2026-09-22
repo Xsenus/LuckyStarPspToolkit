@@ -14,6 +14,10 @@ public sealed class LicenseWebServer : IAsyncDisposable
     private readonly HttpListener listener = new();
     /// <summary>Bounded admitted workers; excessive requests fail rather than queue without limit.</summary>
     private readonly SemaphoreSlim capacity = new(8, 8);
+    /// <summary>Anonymous login uploads cannot occupy the existing-session worker pool.</summary>
+    private readonly SemaphoreSlim loginCapacity = new(2, 2);
+    /// <summary>Recent-MFA uploads have reserved admission, independent of both login and ordinary reads.</summary>
+    private readonly SemaphoreSlim reauthenticationCapacity = new(2, 2);
     /// <summary>Cancellation for all active body reads and listener shutdown.</summary>
     private readonly CancellationTokenSource stop = new();
     /// <summary>Request task registry for orderly shutdown.</summary>
@@ -61,11 +65,22 @@ public sealed class LicenseWebServer : IAsyncDisposable
             while (!stop.IsCancellationRequested)
             {
                 var context = await listener.GetContextAsync().ConfigureAwait(false);
-                if (!capacity.Wait(0)) { context.Response.StatusCode = 503; context.Response.Close(); continue; }
+                SemaphoreSlim lane = context.Request.HttpMethod == "POST" ? context.Request.Url?.AbsolutePath switch
+                {
+                    "/api/login" => loginCapacity,
+                    "/api/reauth" => reauthenticationCapacity,
+                    _ => capacity
+                } : capacity;
+                if (!lane.Wait(0))
+                {
+                    SecureHeaders(context.Response);
+                    context.Response.StatusCode = 503; context.Response.Headers["Retry-After"] = "1";
+                    context.Response.ContentLength64 = 0; context.Response.Close(); continue;
+                }
                 lock (sync)
                 {
                     workers.RemoveAll(t => t.IsCompleted);
-                    workers.Add(Task.Run(async () => { try { await HandleAsync(context).ConfigureAwait(false); } finally { capacity.Release(); } }));
+                    workers.Add(Task.Run(async () => { try { await HandleAsync(context).ConfigureAwait(false); } finally { lane.Release(); } }));
                 }
             }
         }
@@ -121,16 +136,18 @@ public sealed class LicenseWebServer : IAsyncDisposable
             {
                 if ((request.ContentType ?? "").Split(';')[0].Trim() != "application/json" || request.Headers["Content-Encoding"] is not null)
                     throw new LicenseException("WEB_CONTENT", "Use uncompressed JSON.");
+                // Authenticate before waiting for a body: anonymous slow uploads must not occupy owner-operation workers.
+                if (path != "/api/login") _ = authentication.Require(sessionId, csrf);
                 byte[] body = await ReadBodyAsync(request, timeout.Token).ConfigureAwait(false);
                 if (path == "/api/login")
                 {
-                    var session = authentication.Login(LicenseJson.Read<WebLoginRequest>(body), source);
+                    var session = authentication.Login(LicenseJson.Read<WebLoginRequest>(body), source, timeout.Token);
                     authentication.Logout(sessionId); // session rotation; failed logins never erase the previous session
                     SetCookie(response, session.SessionId, false); result = SessionView(session);
                 }
                 else
                 {
-                    _ = authentication.Require(sessionId, csrf);
+                    _ = authentication.Require(sessionId, csrf); // Repeat after upload in case the session expired or was revoked.
                     switch (path)
                     {
                         case "/api/licenses/query":
@@ -145,7 +162,7 @@ public sealed class LicenseWebServer : IAsyncDisposable
                         case "/api/sessions/revoke":
                             result = new { revoked = authentication.RevokeSessions(sessionId, csrf, LicenseJson.Read<WebSessionRevokeRequest>(body)) }; break;
                         case "/api/reauth":
-                            authentication.Reauthenticate(sessionId, csrf, LicenseJson.Read<WebLoginRequest>(body), source);
+                            authentication.Reauthenticate(sessionId, csrf, LicenseJson.Read<WebLoginRequest>(body), source, timeout.Token);
                             result = new { ok = true }; break;
                         case "/api/issue":
                             var issue = LicenseJson.Read<IssueLicenseRequest>(body);
@@ -171,9 +188,12 @@ public sealed class LicenseWebServer : IAsyncDisposable
         catch (LicenseException ex)
         {
             int status = ex.Code switch { "WEB_UNAUTHORIZED" or "WEB_AUTH_FAILED" => 401, "WEB_ORIGIN" or "WEB_CSRF" or "WEB_REAUTH_REQUIRED" => 403,
-                "OWNER_PAGE_STALE" => 409, "WEB_NOT_FOUND" => 404, "WEB_RATE_LIMIT" or "WEB_BUSY" => 429, "WEB_BODY" => 413, "WEB_CONTENT" => 415, _ => 400 };
+                "WEB_CLOSED" => 503, "OWNER_PAGE_STALE" => 409, "WEB_NOT_FOUND" => 404, "WEB_RATE_LIMIT" or "WEB_BUSY" => 429, "WEB_BODY" => 413, "WEB_CONTENT" => 415, _ => 400 };
+            if (ex.Code == "WEB_BUSY") context.Response.Headers["Retry-After"] = "1";
             try { await JsonAsync(context.Response, status, new LicenseError(ex.Code, ex.Message), timeout.Token).ConfigureAwait(false); } catch { context.Response.Abort(); }
         }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        { context.Response.Abort(); }
         catch (Exception)
         {
             try { await JsonAsync(context.Response, 500, new LicenseError("WEB_FAILURE", "Management operation could not complete; retry with the same request ID."), timeout.Token).ConfigureAwait(false); }
@@ -239,6 +259,6 @@ public sealed class LicenseWebServer : IAsyncDisposable
     {
         stop.Cancel(); listener.Close(); try { await loop.ConfigureAwait(false); } catch { }
         Task[] pending; lock (sync) pending = workers.ToArray(); await Task.WhenAll(pending).ConfigureAwait(false);
-        authentication.Dispose(); capacity.Dispose(); stop.Dispose();
+        authentication.Dispose(); capacity.Dispose(); loginCapacity.Dispose(); reauthenticationCapacity.Dispose(); stop.Dispose();
     }
 }

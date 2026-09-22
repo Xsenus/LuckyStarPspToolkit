@@ -1,5 +1,5 @@
 import { React, createRoot } from './vendor.js';
-import { makeKey, integer, issueRequest, reserveStatus, pageItems, dateText, downloadText, requestApi, mutationApi, clearPendingMutations, createOwnerPager } from './model.mjs';
+import { ownerAuthMessage, makeKey, integer, issueRequest, reserveStatus, pageItems, dateText, downloadText, requestApi, mutationApi, clearPendingMutations, createOwnerPager } from './model.mjs';
 const h = React.createElement;
 const { useState, useEffect, useRef } = React;
 const labels = { active: 'Активна', pending: 'Ждёт активации', expired: 'Истекла', suspended: 'Приостановлена', revoked: 'Отозвана' };
@@ -20,7 +20,7 @@ function Credentials({ session, onSuccess, reauth = false, onCancel }) {
         onSuccess(result);
     }
     catch (e) {
-        setError(e.code === 'WEB_AUTH_FAILED' ? 'Неверный пароль или одноразовый код. Повторно использованный код тоже отклоняется.' : e.message);
+        setError(ownerAuthMessage(e, reauth));
     }
     finally {
         form.elements.password.value = '';

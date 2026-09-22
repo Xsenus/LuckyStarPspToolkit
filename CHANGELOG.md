@@ -1,5 +1,13 @@
 # 0.18.0
 
+## 0.19.0 — 2026-09-22
+
+Независимые полосы login/recent-MFA, derivation вне session lock, отмена и
+повторная проверка состояния перед расходом MFA; бюджет reauth привязан к
+сессии. HTTP-изоляция 2/2/8 и ранние cookie/CSRF проверки. React-диагностика
+ошибок входа, 25 C# групп и 8 frontend tests. Схема БД и клиентский протокол прежние.
+Подробности: docs/RELEASE_NOTES_0.19.0_RU.md.
+
 Bounded server-side license/reserve/installation-choice pages with deterministic keyset
 ordering, authenticated query/revision/time-bound continuations, coherent counts and
 one-license detail lookup. Preserve legacy API compatibility. The owner React console
@@ -186,3 +194,7 @@ Checked local/CI build-and-package driver; RID restore fix; native command fail-
 - Выполнены анализ и проверка присланного EBOOT `ULJM05752`.
 - Определены смешанные файлы игры и обновления PSP.
 - Подготовлены базовый C#-проект и профиль первой игры.
+
+Изоляция входа и повторного MFA распространяется также на обновлённый Nginx-шаблон.
+Сервер, React-ресурсы и proxy-конфигурацию нужно обновлять согласованно; см.
+[ADMIN_AUTH_CONCURRENCY_RU.md](docs/ADMIN_AUTH_CONCURRENCY_RU.md).

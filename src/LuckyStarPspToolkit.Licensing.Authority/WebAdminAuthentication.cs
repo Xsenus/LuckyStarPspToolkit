@@ -67,6 +67,17 @@ public sealed partial class WebAdminAuthentication : IDisposable
     /// <param name="Authenticated">Last password plus MFA verification.</param>
     /// <param name="ManagementId">Independent public handle; never accepted as an authentication cookie.</param>
     private sealed record SessionEntry(WebSession View, long Created, long Seen, long Authenticated, string ManagementId);
+    /// <summary>Verified-session reauthentication budget; anonymous attempts cannot exhaust this separate lane.</summary>
+    private readonly Dictionary<string, AttemptWindow> reauthenticationAttempts = new(StringComparer.Ordinal);
+    /// <summary>One admitted anonymous password derivation; excess attempts fail immediately without a queue.</summary>
+    private bool loginInProgress;
+    /// <summary>One reserved password derivation for an already authenticated owner, independent of anonymous login.</summary>
+    private bool reauthenticationInProgress;
+    /// <summary>One-way shutdown marker checked again after expensive work before consuming any second factor.</summary>
+    private bool disposed;
+    /// <summary>Private verification dependency; the public constructor always selects the production PBKDF2 implementation.</summary>
+    private readonly Func<string, byte[], byte[], bool> verifyPassword;
+
     /// <summary>Per-source fixed login window.</summary>
     /// <param name="Started">Monotonic start.</param>
     /// <param name="Count">Attempts including successful ones.</param>
@@ -121,7 +132,15 @@ public sealed partial class WebAdminAuthentication : IDisposable
     /// <param name="directory">Authority directory.</param>
     /// <param name="time">Optional deterministic test clock.</param>
     public WebAdminAuthentication(string directory, TimeProvider? time = null)
+        : this(directory, time, WebPasswordVerification.Verify) { }
+
+    /// <summary>Internal deterministic test seam; production construction never accepts a supplied password verifier.</summary>
+    /// <param name="directory">Existing private authority directory.</param>
+    /// <param name="time">Clock used for session and second-factor decisions.</param>
+    /// <param name="verifyPassword">Bounded password verifier; tests may surround the real verifier with synchronization barriers.</param>
+    internal WebAdminAuthentication(string directory, TimeProvider? time, Func<string, byte[], byte[], bool> verifyPassword)
     {
+        this.verifyPassword = verifyPassword ?? throw new ArgumentNullException(nameof(verifyPassword));
         this.time = time ?? TimeProvider.System;
         var config = LicenseJson.Read<AuthorityConfiguration>(PrivateFiles.Read(Path.Combine(directory, "authority.json")));
         pepper = Convert.FromBase64String(config.Pepper); path = Path.Combine(directory, "web-account.json");
@@ -150,21 +169,32 @@ public sealed partial class WebAdminAuthentication : IDisposable
     /// <summary>Host-prefixed production cookie prevents domain/path weakening.</summary>
     public string CookieName => DevelopmentLoopback ? "lsp-dev-session" : "__Host-lsp-session";
 
-    /// <summary>Verifies password and a fresh second factor before creating an opaque session.</summary>
+    /// <summary>Verifies a password outside the session lock, then consumes MFA against current state and creates a session atomically.</summary>
     /// <param name="request">Bounded untrusted login fields.</param>
     /// <param name="source">Trusted proxy ingress bucket, or literal loopback in tests.</param>
+    /// <param name="cancellation">Request deadline; cancellation before the final commit does not consume the factor.</param>
     /// <returns>New cookie/CSRF pair, never the owner bearer token.</returns>
-    public WebSession Login(WebLoginRequest request, string source)
+    /// <exception cref="LicenseException">Capacity, throttling, credentials or current account state forbid a new session.</exception>
+    /// <exception cref="OperationCanceledException">The caller cancelled before authentication was committed.</exception>
+    public WebSession Login(WebLoginRequest request, string source, CancellationToken cancellation = default)
     {
-        lock (sync)
+        WebAccount credentials = BeginVerification(request, source, null, null, cancellation);
+        try
         {
-            Admit(source); Prune();
-            if (sessions.Count >= 64) throw new LicenseException("WEB_BUSY", "Session capacity reached; retry after idle sessions expire.");
-            Authenticate(request);
-            long now = time.GetTimestamp();
-            var view = new WebSession(LicenseCrypto.Nonce(), LicenseCrypto.Nonce(), account.Username);
-            sessions.Add(view.SessionId, new(view, now, now, now, Guid.NewGuid().ToString("D"))); return view;
+            cancellation.ThrowIfCancellationRequested();
+            CheckPassword(request, credentials);
+            lock (sync)
+            {
+                RequireOpen(); cancellation.ThrowIfCancellationRequested(); Prune();
+                if (sessions.Count >= 64) throw new LicenseException("WEB_BUSY", "Session capacity reached; retry after idle sessions expire.");
+                ConsumeFactor(request.Code);
+                long now = time.GetTimestamp();
+                var view = new WebSession(LicenseCrypto.Nonce(), LicenseCrypto.Nonce(), account.Username);
+                sessions.Add(view.SessionId, new(view, now, now, now, Guid.NewGuid().ToString("D")));
+                return view;
+            }
         }
+        finally { lock (sync) loginInProgress = false; }
     }
 
     /// <summary>Requires an unexpired session and optional CSRF/fresh-MFA proof, then advances only its idle timestamp.</summary>
@@ -176,46 +206,106 @@ public sealed partial class WebAdminAuthentication : IDisposable
     {
         lock (sync)
         {
-            Prune();
-            if (id.Length != 43 || !sessions.TryGetValue(id, out var entry)) throw new LicenseException("WEB_UNAUTHORIZED", "Sign in to continue.");
+            RequireOpen(); Prune();
+            if (id is null || id.Length != 43 || !sessions.TryGetValue(id, out var entry)) throw new LicenseException("WEB_UNAUTHORIZED", "Sign in to continue.");
             if (csrf is not null && !Equal(csrf, entry.View.CsrfToken)) throw new LicenseException("WEB_CSRF", "The request CSRF token is invalid.");
-            if (fresh && time.GetElapsedTime(entry.Authenticated) > FreshLimit) throw new LicenseException("WEB_REAUTH_REQUIRED", "Confirm your password and a new authenticator code.");
+            if (fresh && time.GetElapsedTime(entry.Authenticated) >= FreshLimit) throw new LicenseException("WEB_REAUTH_REQUIRED", "Confirm your password and a new authenticator code.");
             sessions[id] = entry with { Seen = time.GetTimestamp() }; return entry.View;
         }
     }
 
-    /// <summary>Consumes fresh password/MFA proof for a currently authenticated, CSRF-protected session.</summary>
+    /// <summary>Verifies fresh proof outside the session lock and rechecks session lifetime, revocation, CSRF and current MFA state before commit.</summary>
     /// <param name="id">Current session.</param>
     /// <param name="csrf">Current anti-CSRF token.</param>
     /// <param name="request">Password and fresh second factor.</param>
-    /// <param name="source">Trusted ingress bucket.</param>
-    public void Reauthenticate(string id, string csrf, WebLoginRequest request, string source)
+    /// <param name="source">Ingress identifier retained for API compatibility; the reauthentication budget is keyed by the verified session.</param>
+    /// <param name="cancellation">Deadline checked before the durable second-factor commit.</param>
+    /// <exception cref="LicenseException">The session expired, was revoked, exceeded its budget or supplied invalid credentials.</exception>
+    /// <exception cref="OperationCanceledException">The request was cancelled before committing authentication.</exception>
+    public void Reauthenticate(string id, string csrf, WebLoginRequest request, string source, CancellationToken cancellation = default)
     {
+        if (id is null) throw new LicenseException("WEB_UNAUTHORIZED", "Sign in to continue.");
+        if (csrf is null) throw new LicenseException("WEB_CSRF", "The request CSRF token is invalid.");
+        WebAccount credentials = BeginVerification(request, source, id, csrf, cancellation);
+        try
+        {
+            cancellation.ThrowIfCancellationRequested();
+            CheckPassword(request, credentials);
+            lock (sync)
+            {
+                RequireOpen(); cancellation.ThrowIfCancellationRequested();
+                _ = Require(id, csrf);
+                ConsumeFactor(request.Code);
+                sessions[id] = sessions[id] with { Authenticated = time.GetTimestamp() };
+            }
+        }
+        finally { lock (sync) reauthenticationInProgress = false; }
+    }
+
+    /// <summary>Invalidates a session server-side and erases its attempt window; in-flight reauthentication cannot recreate it.</summary>
+    /// <param name="id">Opaque current cookie value.</param>
+    public void Logout(string id)
+    {
+        lock (sync) { RequireOpen(); if (id is null) return; sessions.Remove(id); reauthenticationAttempts.Remove(id); }
+    }
+
+    /// <summary>Admits at most one login and one existing-session verification without retaining queued passwords.</summary>
+    /// <param name="request">Untrusted bounded credential fields.</param>
+    /// <param name="source">Trusted source used only for anonymous login throttling.</param>
+    /// <param name="sessionId">Authenticated cookie for the reserved lane, or null for anonymous login.</param>
+    /// <param name="csrf">CSRF proof for the reserved lane.</param>
+    /// <param name="cancellation">Caller cancellation checked before charging the attempt budget.</param>
+    /// <returns>Immutable credential snapshot; mutable MFA consumption state must never be committed from this snapshot.</returns>
+    private WebAccount BeginVerification(WebLoginRequest request, string source, string? sessionId, string? csrf, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        if (request is null || request.Username is null || request.Password is null || request.Code is null ||
+            request.Username.Length > 64 || request.Password.Length > 256 || request.Code.Length > 64)
+            throw new LicenseException("WEB_AUTH_FAILED", "Invalid account, password or one-time code.");
         lock (sync)
         {
-            _ = Require(id, csrf); Admit(source); Authenticate(request);
-            sessions[id] = sessions[id] with { Authenticated = time.GetTimestamp() };
+            RequireOpen(); cancellation.ThrowIfCancellationRequested(); Prune();
+            if (sessionId is null)
+            {
+                if (loginInProgress || sessions.Count >= 64)
+                    throw new LicenseException("WEB_BUSY", "Sign-in capacity reached; retry later.");
+                Admit(source, attempts, 1024);
+                loginInProgress = true;
+            }
+            else
+            {
+                _ = Require(sessionId, csrf);
+                if (reauthenticationInProgress) throw new LicenseException("WEB_BUSY", "Owner verification is busy; retry later.");
+                Admit(sessionId, reauthenticationAttempts, 64);
+                reauthenticationInProgress = true;
+            }
+            return account;
         }
     }
 
-    /// <summary>Invalidates a session server-side; deleting a browser cookie alone is not sufficient.</summary>
-    /// <param name="id">Opaque current cookie value.</param>
-    public void Logout(string id) { lock (sync) sessions.Remove(id); }
-
-    /// <summary>Consumes a second factor durably before granting any new authentication state.</summary>
-    /// <param name="request">Bounded login fields; errors deliberately do not disclose which factor was wrong.</param>
-    private void Authenticate(WebLoginRequest request)
+    /// <summary>Performs the unchanged 600000-iteration derivation without holding any session or account-state lock.</summary>
+    /// <param name="request">Previously bounded password and username.</param>
+    /// <param name="credentials">Immutable credentials captured at admission; second-factor state is deliberately ignored.</param>
+    private void CheckPassword(WebLoginRequest request, WebAccount credentials)
     {
-        if (request.Username.Length > 64 || request.Password.Length > 256 || request.Code.Length > 64)
-            throw new LicenseException("WEB_AUTH_FAILED", "Invalid account, password or one-time code.");
-        byte[] actual = Rfc2898DeriveBytes.Pbkdf2(request.Password, Convert.FromBase64String(account.PasswordSalt),
-            600000, HashAlgorithmName.SHA256, 32);
-        bool passwordOk = CryptographicOperations.FixedTimeEquals(actual, Convert.FromBase64String(account.PasswordHash));
-        CryptographicOperations.ZeroMemory(actual);
-        if (!passwordOk || request.Username != account.Username) throw new LicenseException("WEB_AUTH_FAILED", "Invalid account, password or one-time code.");
-        long step = Totp.Match(account.TotpSecret, request.Code, time.GetUtcNow().ToUnixTimeSeconds(), account.LastTotpStep);
-        string hash = LicenseCrypto.Digest(Encoding.UTF8.GetBytes(request.Code));
-        bool recovery = request.Code.StartsWith("RCV-", StringComparison.Ordinal) && account.RecoveryHashes.Any(x => Equal(x, hash));
+        byte[] salt = Convert.FromBase64String(credentials.PasswordSalt);
+        byte[] expected = Convert.FromBase64String(credentials.PasswordHash);
+        try
+        {
+            bool valid = verifyPassword(request.Password, salt, expected);
+            if (!valid || request.Username != credentials.Username)
+                throw new LicenseException("WEB_AUTH_FAILED", "Invalid account, password or one-time code.");
+        }
+        finally { CryptographicOperations.ZeroMemory(salt); CryptographicOperations.ZeroMemory(expected); }
+    }
+
+    /// <summary>Consumes a second factor against the latest account state under sync, persisting it before granting access.</summary>
+    /// <param name="code">Bounded TOTP or recovery code; current time is evaluated after password work.</param>
+    private void ConsumeFactor(string code)
+    {
+        long step = Totp.Match(account.TotpSecret, code, time.GetUtcNow().ToUnixTimeSeconds(), account.LastTotpStep);
+        string hash = LicenseCrypto.Digest(Encoding.UTF8.GetBytes(code));
+        bool recovery = code.StartsWith("RCV-", StringComparison.Ordinal) && account.RecoveryHashes.Any(x => Equal(x, hash));
         if (step < 0 && !recovery) throw new LicenseException("WEB_AUTH_FAILED", "Invalid account, password or one-time code.");
         WebAccount updated = account with
         {
@@ -225,23 +315,33 @@ public sealed partial class WebAdminAuthentication : IDisposable
         WriteAccount(path, updated, pepper, true); account = updated;
     }
 
-    /// <summary>Limits expensive password derivations and source buckets, without accepting arbitrary client IP headers directly.</summary>
-    /// <param name="source">Proxy-supplied address already selected by the web listener.</param>
-    private void Admit(string source)
+    /// <summary>Charges a bounded five-minute attempt window before expensive password work; busy rejections do not consume attempts.</summary>
+    /// <param name="source">Trusted source address or verified session cookie; never used to authorize requests.</param>
+    /// <param name="windows">Private table for one independently limited verification lane.</param>
+    /// <param name="maximumSources">Maximum retained identities for that table.</param>
+    private void Admit(string source, Dictionary<string, AttemptWindow> windows, int maximumSources)
     {
         long now = time.GetTimestamp();
-        foreach (string key in attempts.Where(x => time.GetElapsedTime(x.Value.Started) >= TimeSpan.FromMinutes(5)).Select(x => x.Key).ToArray()) attempts.Remove(key);
-        if (source.Length > 80 || (!attempts.ContainsKey(source) && attempts.Count >= 1024)) throw new LicenseException("WEB_RATE_LIMIT", "Too many sign-in attempts.");
-        var entry = attempts.GetValueOrDefault(source) ?? new AttemptWindow(now, 0);
+        foreach (string key in windows.Where(x => time.GetElapsedTime(x.Value.Started) >= TimeSpan.FromMinutes(5)).Select(x => x.Key).ToArray()) windows.Remove(key);
+        if (source is null || source.Length is < 1 or > 80 || (!windows.ContainsKey(source) && windows.Count >= maximumSources))
+            throw new LicenseException("WEB_RATE_LIMIT", "Too many sign-in attempts.");
+        var entry = windows.GetValueOrDefault(source) ?? new AttemptWindow(now, 0);
         if (entry.Count >= 8) throw new LicenseException("WEB_RATE_LIMIT", "Too many sign-in attempts. Retry later or use the private owner console.");
-        attempts[source] = entry with { Count = entry.Count + 1 };
+        windows[source] = entry with { Count = entry.Count + 1 };
+    }
+
+    /// <summary>Rejects public operations and pending password commits after shutdown has invalidated all sessions.</summary>
+    private void RequireOpen()
+    {
+        if (disposed) throw new LicenseException("WEB_CLOSED", "Browser authentication has stopped.");
     }
 
     /// <summary>Removes expired sessions using monotonic idle and absolute lifetimes.</summary>
     private void Prune()
     {
         foreach (string key in sessions.Where(x => time.GetElapsedTime(x.Value.Seen) >= IdleLimit ||
-            time.GetElapsedTime(x.Value.Created) >= TimeSpan.FromHours(8)).Select(x => x.Key).ToArray()) sessions.Remove(key);
+            time.GetElapsedTime(x.Value.Created) >= TimeSpan.FromHours(8)).Select(x => x.Key).ToArray())
+        { sessions.Remove(key); reauthenticationAttempts.Remove(key); }
     }
 
     /// <summary>Checks exact same-origin deployment and forbids wildcard hosts or production HTTP.</summary>
@@ -280,7 +380,16 @@ public sealed partial class WebAdminAuthentication : IDisposable
     }
 
     /// <summary>Invalidates all browser sessions and releases private resources after requests are drained.</summary>
-    public void Dispose() { lock (sync) { sessions.Clear(); CryptographicOperations.ZeroMemory(pepper); writerLock.Dispose(); } }
+    public void Dispose()
+    {
+        lock (sync)
+        {
+            if (disposed) return;
+            disposed = true;
+            sessions.Clear(); attempts.Clear(); reauthenticationAttempts.Clear();
+            CryptographicOperations.ZeroMemory(pepper); writerLock.Dispose();
+        }
+    }
 }
 
 /// <summary>RFC 6238-compatible SHA-1 TOTP with a fixed six-digit/30-second profile and replay checks supplied by the caller.</summary>

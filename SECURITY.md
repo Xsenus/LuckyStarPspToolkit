@@ -41,3 +41,11 @@ The toolkit is not a DRM bypass service, a game downloader, or a source of propr
 ## Filesystem assumptions in 0.10.0
 
 Protected path checks reject lexical aliases and existing symbolic links/reparse points. They do not identify every hard-link alias and are not a guarantee against a concurrent hostile process changing directory entries between checks. Keep the workspace on a local filesystem controlled by the developer, with originals separately backed up. Atomic rename/rollback is not a universal power-failure transaction across multiple files.
+
+## Обновление 0.19.0: MFA и сессии
+
+См. [изолированную проверку владельца](docs/ADMIN_AUTH_CONCURRENCY_RU.md).
+WEB_BUSY — полоса проверки занята; автоматического повтора пароля/кода нет.
+WEB_RATE_LIMIT при reauth относится к сессии, а не к IP. WEB_UNAUTHORIZED после
+долгой проверки требует нового входа. Исходные лицензии и резерв до 168 часов не меняются.
+Не выполнять новый init; обновить согласованный серверный пакет и web, затем войти заново.

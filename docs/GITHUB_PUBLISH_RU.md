@@ -1,10 +1,10 @@
-# GitHub и лицензирование 0.18.0
+# GitHub и лицензирование 0.19.0
 
 Полный архив и Git-история — только владельцу. Публикация исходников позволяет снять клиентский контроль.
 Изучите THIRD_PARTY_NOTICES.md перед публичным распространением. Реальная проверка ваших GitHub jobs не выполнялась.
 
 ```powershell
-git clone .\git\LuckyStarPspToolkit-0.18.0.git.bundle LuckyStarPspToolkit
+git clone .\git\LuckyStarPspToolkit-0.19.0.git.bundle LuckyStarPspToolkit
 cd LuckyStarPspToolkit
 git remote remove origin
 git remote add origin <адрес-вашего-репозитория>
@@ -19,7 +19,7 @@ Workflow валидирует профиль и отвергает developmentLo
 После успешных Windows/Linux проверок:
 
 ```powershell
-git push origin v0.18.0
+git push origin v0.19.0
 ```
 
 Получится draft prerelease с customer-пакетами. Без публичной настройки издателя release job остановится,
@@ -27,7 +27,7 @@ git push origin v0.18.0
 Встроенный профиль можно проверить `lsptool license build-info`; активация на вашем реальном HTTPS-сервере
 и игровая приёмка являются дополнительными проверками перед выдачей клиенту.
 
-## 0.18.0 React/owner packages
+## 0.19.0 React/owner packages
 
 Держите репозиторий приватным. Основной CI выполняет Node-тесты и сборку pinned React,
 отдельный browser-owner-integration job использует настоящее Chromium-навигационное соединение.

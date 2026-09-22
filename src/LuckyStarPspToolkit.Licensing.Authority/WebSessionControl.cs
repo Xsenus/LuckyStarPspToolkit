@@ -48,7 +48,7 @@ public sealed partial class WebAdminAuthentication
                 throw new LicenseException("WEB_SESSION_CURRENT", "Use logout to close your current session.");
             string[] remove = sessions.Where(x => x.Key != id && (request.Others || x.Value.ManagementId == request.SessionId))
                 .Select(x => x.Key).ToArray();
-            foreach (string key in remove) sessions.Remove(key);
+            foreach (string key in remove) { sessions.Remove(key); reauthenticationAttempts.Remove(key); }
             return remove.Length;
         }
     }

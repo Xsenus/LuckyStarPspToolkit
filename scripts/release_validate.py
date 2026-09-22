@@ -87,6 +87,11 @@ def validate(customer: Path | None, require_dotnet: bool) -> dict[str, object]:
         run('react-vendor-integrity-and-build', [node, 'web/license-admin/build.mjs'])
     else:
         skip('react-build', 'Node.js is not installed.')
+    if shutil.which('nginx') and shutil.which('openssl'):
+        run('nginx-local-tls-isolation', [sys.executable, 'validation/validate_admin_proxy.py',
+                                        '--output', str(output / 'admin-proxy/current.json')])
+    else:
+        skip('nginx-local-tls-isolation', 'Nginx/OpenSSL are unavailable; this optional local proxy test does not certify production deployment.')
     skip('native-browser-https-cookie-csp', 'Local bridge test is reported separately; production TLS/native browser enforcement requires native browser CI and deployed HTTPS.')
     if (ROOT / '.git').exists():
         run('git-whitespace', ['git', 'diff', '--check', 'HEAD'])
