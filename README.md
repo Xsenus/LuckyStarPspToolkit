@@ -81,7 +81,7 @@ lsptool cpk-verify sc.cpk
 
 ## Публикация на GitHub
 
-[Инструкция GitHub](docs/GITHUB_PUBLISH_RU.md). Обычный push запускает проверку и сборку пакетов в Windows/Linux. Push тега, совпадающего с `VERSION`, после успешной проверки обеих платформ создаёт **draft prerelease** с ZIP и SHA-256. Перевод не объявляется завершённым автоматически.
+[Инструкция GitHub](docs/GITHUB_PUBLISH_RU.md). Обычный push запускает проверку и сборку пакетов в Windows/Linux. Push тега, совпадающего с `VERSION`, после успешной проверки обеих платформ публикует **engineering prerelease** с ZIP и SHA-256. Перевод не объявляется завершённым автоматически.
 
 Происхождение VWF-профиля и статус разрешений раскрыты в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) и [docs/LICENSING.md](docs/LICENSING.md). Сторонняя таблица не перелицензируется нашей MIT. Аудит исходной Git-истории описан в [отчёте публикации](docs/PUBLICATION_AUDIT_RU.md).
 

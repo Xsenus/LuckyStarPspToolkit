@@ -18,8 +18,8 @@ private issuer material. After publication, verify the intended issuer/HTTPS URL
 activation, native self-test and revocation on the deployed authority. These steps
 were executed for 0.19.1; repeat them for changed issuers or new releases.
 
-For tagged CI, both native platform jobs must pass before creation of a draft
-prerelease. Review [third-party notices](../THIRD_PARTY_NOTICES.md) and
+For tagged CI, both native platform jobs and archive digests must pass before
+publication of a prerelease. Review [third-party notices](../THIRD_PARTY_NOTICES.md) and
 [the acceptance matrix](CUSTOMER_ACCEPTANCE_RU.md). A failed build must preserve
 previous working packages. Use a new patch version for corrections instead of
 silently replacing a published tag.

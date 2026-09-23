@@ -62,7 +62,7 @@ python scripts/build_release.py --rids win-x64 --license-trust C:\LspOwner\clien
 ```
 
 После успешного CI создайте и отправьте тег `v<VERSION>` для проверенного коммита.
-`release.yml` повторит Windows/Linux проверки и создаст **draft prerelease** с
+`release.yml` повторит Windows/Linux проверки и опубликует **engineering prerelease** с
 клиентскими ZIP и SHA-256. Без корректного production trust profile job
 остановится. Не меняйте уже опубликованный тег для исправления ошибки: выпускайте
 новую patch-версию.

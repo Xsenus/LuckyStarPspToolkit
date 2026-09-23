@@ -82,7 +82,8 @@ class ReleasePipelineTests(unittest.TestCase):
             self.assertNotIn('dotnet publish', text)
         release_workflow = (ROOT / '.github/workflows/release.yml').read_text()
         self.assertIn('--repo "$GITHUB_REPOSITORY"', release_workflow)
-        self.assertIn('--draft --prerelease', release_workflow)
+        self.assertIn('--verify-tag --prerelease', release_workflow)
+        self.assertIn("find release-assets -type f -name '*.zip.sha256'", release_workflow)
 
     def test_missing_sdk_real_driver_fails(self) -> None:
         """A real driver invocation with an intentionally empty PATH must not announce a built release."""

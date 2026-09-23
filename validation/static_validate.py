@@ -173,7 +173,7 @@ def validate_repository_readiness() -> None:
         'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CONTRIBUTING.md',
         'CODE_OF_CONDUCT.md', 'SECURITY.md', 'SUPPORT.md', 'NuGet.Config',
         '.github/workflows/ci.yml', '.github/workflows/release.yml',
-        '.github/dependabot.yml', '.github/PULL_REQUEST_TEMPLATE.md',
+        '.github/PULL_REQUEST_TEMPLATE.md',
         '.github/ISSUE_TEMPLATE/bug_report.yml',
         '.github/ISSUE_TEMPLATE/feature_request.yml',
         '.github/ISSUE_TEMPLATE/config.yml',
@@ -208,7 +208,8 @@ def validate_repository_readiness() -> None:
             if marker not in workflow:
                 fail(f'{name} workflow is missing {marker!r}')
     for marker in ('tags:', 'VERSION', 'sha256sum -c', 'gh release create',
-                   '--repo "$GITHUB_REPOSITORY"', '--draft --prerelease'):
+                   "find release-assets -type f -name '*.zip.sha256'",
+                   '--repo "$GITHUB_REPOSITORY"', '--verify-tag --prerelease'):
         if marker not in release:
             fail(f'release workflow is missing safety marker {marker!r}')
     driver = (ROOT / 'scripts/build_release.py').read_text(encoding='utf-8')
