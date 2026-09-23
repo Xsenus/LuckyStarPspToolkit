@@ -102,15 +102,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd release-assets
-          sha256sum -c *.sha256
-      - name: Create reviewable engineering preview (not a finished game patch)
+          mapfile -d '' checksums < <(find release-assets -type f -name '*.zip.sha256' -print0)
+          [[ ${#checksums[@]} -eq 2 ]]
+          for checksum in "${checksums[@]}"; do
+            (cd "$(dirname "$checksum")" && sha256sum -c "$(basename "$checksum")")
+          done
+      - name: Publish engineering preview (not a finished game patch)
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "${GITHUB_REF_NAME}" release-assets/* \
-            --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease \
-            --title "Lucky Star PSP Toolkit ${{ needs.verify-version.outputs.version }} — engineering preview" \
-            --notes "Native CI build/tests and synthetic demo passed. Online license activation on the deployed issuer and actual game acceptance are separate. Review THIRD_PARTY_NOTICES.md before making this release public."
+          mapfile -d '' assets < <(find release-assets -type f \( -name '*.zip' -o -name '*.zip.sha256' \) -print0)
+          [[ ${#assets[@]} -eq 4 ]]
+          if gh release view "${GITHUB_REF_NAME}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; verified CI packages without replacing published assets."
+          else
+            gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease \
+              --title "Lucky Star PSP Toolkit ${{ needs.verify-version.outputs.version }} — engineering preview" \
+              --notes "Native CI build/tests and synthetic demo passed. Real-game acceptance still requires the original game files. Review THIRD_PARTY_NOTICES.md."
+          fi
