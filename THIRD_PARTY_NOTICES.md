@@ -16,6 +16,11 @@ The inherited replacement instruction table is **excluded from this repository's
 
 PRX/KIRK behavior and known constants were cross-checked against PPSSPP/libkirk. Those projects retain their own notices and licenses. No claim is made that every historical derivation of this repository has been legally audited. See the reference sources in `docs/SOURCES.md`.
 
+The NIM Type-2 tag seed added in 0.20.0 was checked against PPSSPP's
+`Core/ELF/PrxDecrypter.cpp`. It is used as interoperability data with the
+existing local decryption implementation; no PPSSPP source routine was
+transplanted in this change.
+
 ## Runtime dependencies
 
 The CLI uses the .NET base class library and has no third-party runtime NuGet dependency. Self-contained packages include Microsoft's runtime components with their distribution notices. SDK Roslyn assemblies are used only by the development documentation auditor. Python libraries in validation/requirements.txt are separate development tools.

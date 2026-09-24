@@ -9,8 +9,8 @@ Run `lsptool --help` for the canonical command surface. Commands return stable e
 | Code | Meaning |
 |---:|---|
 | 0 | Operation completed successfully |
-| 2 | Validation or compatibility failure |
-| 3 | Required resource is missing |
+| 2 | Incomplete inspection or unsupported compatibility state |
+| 3 | Invalid or unsafe input, including an unapproved patch |
 | 64 | Invalid command-line usage |
 | 70 | Unexpected internal failure |
 | 74 | File-system or transactional output failure |
@@ -25,9 +25,15 @@ lsptool decrypt-eboot <EBOOT.BIN> <EBOOT.ELF> [--json report.json]
 lsptool sfo <PARAM.SFO> [--json report.json]
 lsptool eboot-vwf-groups
 lsptool eboot-vwf-inspect <EBOOT.BIN|ELF> [--json report.json]
-lsptool eboot-vwf-apply <EBOOT.BIN|ELF> <output.ELF> [--groups russian-text] [--json report.json]
-lsptool eboot-build <EBOOT.BIN|ELF> <output.ELF> [--groups russian-text] [--size-plan plan.json] [--json report.json]
+lsptool eboot-vwf-apply <EBOOT.BIN|ELF> <output.ELF> --experimental-vwf [--groups russian-text] [--json report.json]
+lsptool eboot-build <EBOOT.BIN|ELF> <output.ELF> --experimental-vwf [--groups russian-text] [--size-plan plan.json] [--json report.json]
 ```
+
+VWF is a research path: the full patch made Japanese name-entry keyboard glyphs
+disappear in PPSSPP. The explicit flag does not certify gameplay compatibility.
+`decrypt-eboot` accepts the exact verified RGO or NIM encrypted revision. For NIM,
+the JSON report marks `patchProfileAvailable: false`; this command only reads the
+executable and does not make a modified NIM ELF playable.
 
 ## CPK and script commands
 

@@ -106,6 +106,9 @@ internal static partial class SelfTestRunner
                 Test("customer archive regression", () => TestCustomerArchive(customer));
                 Test("customer EBOOT VWF CLI end-to-end", () => TestCustomerVwfCli(customer));
             }
+            string? nimEboot = ReadOption(args, "--nim-eboot");
+            if (nimEboot is not null)
+                Test("private NIM EBOOT authenticated decryption", () => TestNimEboot(nimEboot));
             Console.WriteLine($"SELF-TEST RESULT: {_passed} passed, 0 failed");
             return 0;
         }
@@ -1641,9 +1644,43 @@ internal static partial class SelfTestRunner
         True(report.Files.Any(static file => file.IsAllZero), "Customer archive must contain the all-zero BOOT placeholder.");
     }
 
-    /// <summary>
-    /// Verifies customer VWF CLI behavior and invariants.
-    /// </summary>
+    /// <summary>Checks authenticated NIM decryption and revision refusal on a private game file.</summary>
+    /// <param name="sourcePath">Path to the private original NIM EBOOT.</param>
+    private static void TestNimEboot(string sourcePath)
+    {
+        string temp = Path.Combine(Path.GetTempPath(), "lsptool-nim-eboot-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        try
+        {
+            string outputPath = Path.Combine(temp, "NIM.ELF");
+            string reportPath = Path.Combine(temp, "report.json");
+            Equal(0, CommandApplication.RunCore([
+                "decrypt-eboot", sourcePath, outputPath, "--json", reportPath]));
+            Equal(LuckyStarPspToolkit.NimProfile.KnownDecryptedSha256,
+                BinaryUtilities.Sha256HexFile(outputPath));
+            using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(reportPath)))
+            {
+                Equal(LuckyStarPspToolkit.NimProfile.DiscId,
+                    document.RootElement.GetProperty("discId").GetString() ?? string.Empty);
+                True(!document.RootElement.GetProperty("patchProfileAvailable").GetBoolean(),
+                    "NIM decryption report incorrectly advertised an executable patch profile.");
+            }
+
+            byte[] changed = File.ReadAllBytes(sourcePath);
+            changed[^1] ^= 1;
+            string changedPath = Path.Combine(temp, "changed.bin");
+            File.WriteAllBytes(changedPath, changed);
+            string refusedPath = Path.Combine(temp, "refused.elf");
+            Equal(3, CommandApplication.RunCore(["decrypt-eboot", changedPath, refusedPath]));
+            True(!File.Exists(refusedPath), "Unknown NIM revision produced an output ELF.");
+        }
+        finally
+        {
+            Directory.Delete(temp, recursive: true);
+        }
+    }
+
+    /// <summary>Verifies customer VWF CLI behavior and invariants.</summary>
     /// <param name="archivePath">The archive path value.</param>
     private static void TestCustomerVwfCli(string archivePath)
     {
@@ -1687,9 +1724,18 @@ internal static partial class SelfTestRunner
 
             string fullPath = Path.Combine(temp, "EBOOT.VWF.ELF");
             string fullReport = Path.Combine(temp, "apply.json");
-            Equal(0, CommandApplication.RunCore([
+            Equal(3, CommandApplication.RunCore([
                 "eboot-vwf-apply", sourcePath, fullPath, "--json", fullReport]));
+            True(!File.Exists(fullPath) && !File.Exists(fullReport),
+                "Unverified VWF profile created a normal output or report without the research flag.");
+            Equal(0, CommandApplication.RunCore([
+                "eboot-vwf-apply", sourcePath, fullPath, "--experimental-vwf", "--json", fullReport]));
             Equal(RgoVwfPatchProfile.KnownFullPatchedSha256, BinaryUtilities.Sha256HexFile(fullPath));
+            using (JsonDocument document = JsonDocument.Parse(File.ReadAllText(fullReport)))
+            {
+                True(!document.RootElement.GetProperty("gameRuntimeVerified").GetBoolean(),
+                    "Experimental VWF report incorrectly claimed gameplay verification.");
+            }
 
             string verifyFullReport = Path.Combine(temp, "verify-full.json");
             Equal(0, CommandApplication.RunCore([
@@ -1702,12 +1748,13 @@ internal static partial class SelfTestRunner
             }
 
             string secondPath = Path.Combine(temp, "EBOOT.VWF.SECOND.ELF");
-            Equal(0, CommandApplication.RunCore(["eboot-vwf-apply", fullPath, secondPath]));
+            Equal(0, CommandApplication.RunCore(["eboot-vwf-apply", fullPath, secondPath,
+                "--experimental-vwf"]));
             SequenceEqual(File.ReadAllBytes(fullPath), File.ReadAllBytes(secondPath));
 
             string corePath = Path.Combine(temp, "EBOOT.CORE.ELF");
             Equal(0, CommandApplication.RunCore([
-                "eboot-vwf-apply", sourcePath, corePath, "--groups", "core-only"]));
+                "eboot-vwf-apply", sourcePath, corePath, "--experimental-vwf", "--groups", "core-only"]));
             Equal(2, CommandApplication.RunCore(["verify-eboot", corePath]));
             RgoExecutableCheck coreCheck = RgoProfile.VerifyExecutable(File.ReadAllBytes(corePath));
             Equal(ExecutableCompatibility.RecognizedVwfPatchLineage, coreCheck.Compatibility);
@@ -1720,7 +1767,7 @@ internal static partial class SelfTestRunner
             plan.Save(planPath);
             string combinedPath = Path.Combine(temp, "EBOOT.VWF.SIZE.ELF");
             Equal(0, CommandApplication.RunCore([
-                "eboot-vwf-apply", sourcePath, combinedPath, "--size-plan", planPath]));
+                "eboot-vwf-apply", sourcePath, combinedPath, "--experimental-vwf", "--size-plan", planPath]));
             RgoExecutableCheck combinedCheck = RgoProfile.VerifyExecutable(File.ReadAllBytes(combinedPath));
             Equal(ExecutableCompatibility.RecognizedVwfPatchLineage, combinedCheck.Compatibility);
             True(combinedCheck.ScriptSizeTableModified,
@@ -1740,6 +1787,7 @@ internal static partial class SelfTestRunner
             string largeCombinedReport = Path.Combine(temp, "large-apply.json");
             Equal(0, CommandApplication.RunCore([
                 "eboot-build", sourcePath, largeCombinedPath,
+                "--experimental-vwf",
                 "--size-plan", largePlanPath,
                 "--json", largeCombinedReport]));
             RgoExecutableCheck largeCombinedCheck = RgoProfile.VerifyExecutable(
@@ -1783,7 +1831,7 @@ internal static partial class SelfTestRunner
 
             string rejectedCombined = Path.Combine(temp, "rejected-partial-plan.elf");
             Equal(3, CommandApplication.RunCore([
-                "eboot-vwf-apply", corePath, rejectedCombined, "--size-plan", planPath]));
+                "eboot-vwf-apply", corePath, rejectedCombined, "--experimental-vwf", "--size-plan", planPath]));
             True(!File.Exists(rejectedCombined),
                 "Rejected partial-patch + size-plan operation created an output file.");
 

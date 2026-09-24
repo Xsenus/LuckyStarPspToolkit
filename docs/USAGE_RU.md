@@ -119,7 +119,7 @@ New-Item -ItemType Directory -Force .\private | Out-Null
 & $exe workspace-build '.\private\translation' '.\private\sc.cpk' '.\private\sc-patched.cpk' --plan '.\private\eboot-size-plan.json'
 ```
 
-Результаты должны находиться ВНЕ каталога `translation`. Далее отдельно проверяются шрифт, EBOOT и ISO. Строго соблюдайте [WORKFLOW_RU.md](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/WORKFLOW_RU.md) и [EBOOT_VWF_PATCH_RU.md](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/EBOOT_VWF_PATCH_RU.md). Выход `eboot-build` — расшифрованный ELF, а не повторно подписанный retail PRX. Оригиналы храните отдельно; работа на реальной PSP подтверждается отдельным запуском.
+Результаты должны находиться ВНЕ каталога `translation`. Далее отдельно проверяются шрифт, EBOOT и ISO. Строго соблюдайте [WORKFLOW_RU.md](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/WORKFLOW_RU.md) и [EBOOT_VWF_PATCH_RU.md](https://github.com/Xsenus/LuckyStarPspToolkit/blob/main/docs/EBOOT_VWF_PATCH_RU.md). VWF-патч сейчас исследовательский: в PPSSPP с ним пропадают символы клавиатуры имени; для клиентского ISO оставляйте исходный EBOOT. Выход `eboot-build` — расшифрованный ELF, а не повторно подписанный retail PRX. Оригиналы храните отдельно; работа на реальной PSP подтверждается отдельным запуском.
 
 ## 7. Когда остановиться
 

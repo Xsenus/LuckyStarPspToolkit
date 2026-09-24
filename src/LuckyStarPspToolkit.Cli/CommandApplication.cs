@@ -233,13 +233,38 @@ public static class CommandApplication
         RequireReportDifferent(options.GetOption("--json"), inputPath, outputPath);
 
         byte[] source = ReadSingleFile(inputPath);
-        RgoExecutableCheck check = RgoProfile.VerifyExecutable(source);
-        if (check.Compatibility != ExecutableCompatibility.ExactVerifiedRevision)
+        string sourceHash = CryptoUtilities.Sha256Hex(source);
+        byte[] plaintext;
+        string decryptedHash;
+        string discId;
+        if (sourceHash.Equals(NimProfile.KnownEncryptedSha256, StringComparison.OrdinalIgnoreCase))
         {
-            throw new CoreToolkitException($"Refusing to write a patchable ELF: {check.Message}");
+            PspDecryptionResult result = PspPrxReader.DecryptVerified(source);
+            Elf32Info elf = ElfReader.Parse32LittleEndian(result.Elf);
+            if (result.Header.Tag != PspPrxReader.SupportedNimTag || !elf.IsPspMips
+                || result.Elf.Length != NimProfile.KnownDecryptedSize
+                || !result.DecryptedSha256.Equals(NimProfile.KnownDecryptedSha256,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new CoreToolkitException("NIM executable differs from the verified revision.");
+            }
+            plaintext = result.Elf;
+            decryptedHash = result.DecryptedSha256;
+            discId = NimProfile.DiscId;
         }
-        byte[] plaintext = check.DecryptedElf
-            ?? throw new CoreToolkitException("Verified executable did not retain decrypted data.");
+        else
+        {
+            RgoExecutableCheck check = RgoProfile.VerifyExecutable(source);
+            if (check.Compatibility != ExecutableCompatibility.ExactVerifiedRevision)
+            {
+                throw new CoreToolkitException($"Refusing to write a verified ELF: {check.Message}");
+            }
+            plaintext = check.DecryptedElf
+                ?? throw new CoreToolkitException("Verified executable did not retain decrypted data.");
+            decryptedHash = check.DecryptedSha256
+                ?? throw new CoreToolkitException("Verified executable has no decrypted checksum.");
+            discId = RgoProfile.DiscId;
+        }
         CoreAtomicFile.WriteAllBytes(outputPath, plaintext);
 
         var report = new
@@ -247,14 +272,16 @@ public static class CommandApplication
             schema = "lucky-star-psp.decrypt-eboot.v1",
             input = inputPath,
             output = outputPath,
-            inputSha256 = check.EncryptedSha256,
-            outputSha256 = check.DecryptedSha256,
+            discId,
+            inputSha256 = sourceHash,
+            outputSha256 = decryptedHash,
             outputSize = plaintext.Length,
-            compatibility = check.Compatibility.ToString()
+            compatibility = "ExactVerifiedRevision",
+            patchProfileAvailable = discId == RgoProfile.DiscId
         };
         string human =
             $"Decrypted ELF written to {outputPath}{Environment.NewLine}" +
-            $"SHA-256: {check.DecryptedSha256}{Environment.NewLine}" +
+            $"SHA-256: {decryptedHash}{Environment.NewLine}" +
             $"Size: {plaintext.Length} bytes{Environment.NewLine}";
         WriteReport(human.ToString(), Serialize(report), options.GetOption("--json"));
         return ExitSuccess;
@@ -335,7 +362,8 @@ public static class CommandApplication
         ParsedArguments options = ParsedArguments.Parse(
             args,
             2,
-            ["--groups", "--size-plan", "--json"]);
+            ["--groups", "--size-plan", "--json"],
+            ["--experimental-vwf"]);
         string sourcePath = FormatPathUtilities.Normalize(options.Positionals[0]);
         string outputPath = FormatPathUtilities.Normalize(options.Positionals[1]);
         string? sizePlanPath = options.GetOption("--size-plan") is { } rawPlan
@@ -366,6 +394,15 @@ public static class CommandApplication
             protectedPaths.Add(sizePlanPath);
         }
         RequireReportDifferent(options.GetOption("--json"), protectedPaths.ToArray());
+
+        if (!options.HasFlag("--experimental-vwf"))
+        {
+            throw new FormatToolkitException(
+                "EBOOT_VWF_UNVERIFIED_RUNTIME",
+                "The RGO VWF profile is not approved for game output: PPSSPP testing showed missing " +
+                "Japanese glyphs on the name-entry keyboard. Use --experimental-vwf only for isolated " +
+                "research after reviewing docs/EBOOT_VWF_PATCH_RU.md.");
+        }
 
         byte[] source = ReadSingleFile(sourcePath);
         IReadOnlyList<string>? groups = ParseVwfGroups(options.GetOption("--groups"));
@@ -480,6 +517,8 @@ public static class CommandApplication
             output = outputPath,
             outputSha256,
             outputIsDecryptedElf = true,
+            gameRuntimeVerified = false,
+            knownRuntimeRegression = "Japanese name-entry keyboard glyphs disappeared in PPSSPP with the full VWF patch.",
             finalScriptSizeTableModified = finalInspection.ScriptSizeTableModified,
             finalScriptHeapModified = finalInspection.ScriptHeapModified,
             finalScriptHeapBytes = finalInspection.ScriptHeapBytes,
@@ -501,6 +540,7 @@ public static class CommandApplication
         human.AppendLine($"  script heap: {finalInspection.ScriptHeapBytes} bytes (required {finalInspection.RequiredScriptHeapBytes})");
         human.AppendLine($"  output SHA-256: {outputSha256}");
         human.AppendLine("  NOTE: output is a decrypted ELF payload, not a re-encrypted retail PRX.");
+        human.AppendLine("  WARNING: experimental VWF profile; name-entry keyboard glyph regression remains unresolved.");
 
         var writes = new List<LuckyStarPspToolkit.Formats.Common.AtomicWriteRequest>
         {
@@ -1849,7 +1889,7 @@ public static class CommandApplication
         writer.WriteLine("  lsptool decrypt-eboot <EBOOT.BIN> <EBOOT.DEC.BIN> [--json <path|->]");
         writer.WriteLine("  lsptool eboot-vwf-groups [--json <path|->]");
         writer.WriteLine("  lsptool eboot-vwf-inspect <EBOOT.BIN|EBOOT.DEC.BIN> [--groups LIST] [--json <path|->]");
-        writer.WriteLine("  lsptool eboot-vwf-apply <EBOOT.BIN|EBOOT.DEC.BIN> <output-elf> [--groups LIST] [--size-plan <path>] [--json <path|->]");
+        writer.WriteLine("  lsptool eboot-vwf-apply <EBOOT.BIN|EBOOT.DEC.BIN> <output-elf> --experimental-vwf [--groups LIST] [--size-plan <path>] [--json <path|->]");
         writer.WriteLine("  lsptool sfo <PARAM.SFO> [--json <path|->]");
         writer.WriteLine("  lsptool iso-list <image.iso> [--json <path|->]");
         writer.WriteLine("  lsptool iso-extract <image.iso> <path-inside-iso> <output> [--json <path|->]");

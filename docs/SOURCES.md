@@ -12,6 +12,12 @@ Historical interoperability references; inclusion here is attribution, not a per
 - https://github.com/hrydgard/ppsspp/tree/master/Core/ELF
 - https://github.com/hrydgard/ppsspp/tree/master/ext/libkirk
 
+For the 0.20.0 NIM PRX interoperability check, the Type-2 tag `0xD9160BF0`
+and its 16-byte seed were cross-checked against PPSSPP's
+[`PrxDecrypter.cpp`](https://github.com/hrydgard/ppsspp/blob/master/Core/ELF/PrxDecrypter.cpp).
+The decryption implementation uses this repository's existing KIRK path; no
+PPSSPP source routine was copied for this release.
+
 Local evidence in `validation/customer-validation-0.8.0.json` is preserved from an earlier iteration. The original private archive was not available for a fresh byte-level run in 0.10.0.
 
 ## 0.11.0 verification references

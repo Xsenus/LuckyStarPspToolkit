@@ -676,6 +676,7 @@ def validate_prx_constants() -> None:
     source = (ROOT / 'src/LuckyStarPspToolkit.Core/PspPrx.cs').read_text(encoding='utf-8')
     expected_arrays = {
         'TagKeyD91613F0': 'ebff40d8b41ae166913b8f64b6fcb712',
+        'TagKeyD9160BF0': '8383f13753d0befc8da73252460ac2c2',
         'Kirk7Key5D': '115a5d20d53a8dd39cc5af410f0f186f',
         'Kirk1Key': '98c940975c1d10e87fe60ea3fd03a8ba',
     }
@@ -689,6 +690,8 @@ def validate_prx_constants() -> None:
             fail(f'PRX key {name} mismatch: {actual}')
     if 'SupportedRgoTag = 0xD91613F0' not in source:
         fail('supported PRX tag mismatch')
+    if 'SupportedNimTag = 0xD9160BF0' not in source:
+        fail('supported NIM PRX tag mismatch')
 
 
 def main() -> int:

@@ -1,5 +1,12 @@
 # Патч EBOOT для кириллицы и переменной ширины
 
+**Статус 0.20.0: только исследовательский профиль.** При проверке полного
+патча в PPSSPP пропали японские символы экранной клавиатуры имени. Команды
+записи теперь требуют `--experimental-vwf`; полученный ELF не предназначен
+для клиентского игрового образа до исправления и повторной проверки.
+Проверенный пробный ISO с двумя русскими репликами использовал исходный EBOOT
+без VWF; см. [отчёт реальной игры](REAL_GAME_AUDIT_0.19.2_RU.md).
+
 ## Назначение
 
 Профиль `rgo-uljm05752-russian-vwf-v1` предназначен только для подтверждённой японской ревизии:
@@ -50,6 +57,7 @@ lsptool eboot-vwf-inspect EBOOT.BIN `
 
 ```powershell
 lsptool eboot-vwf-apply EBOOT.BIN EBOOT.VWF.ELF `
+  --experimental-vwf `
   --groups russian-text `
   --json eboot-vwf-result.json
 ```
@@ -64,6 +72,7 @@ lsptool eboot-vwf-apply EBOOT.BIN EBOOT.VWF.ELF `
 
 ```powershell
 lsptool eboot-build EBOOT.BIN EBOOT.TRANSLATED.ELF `
+  --experimental-vwf `
   --size-plan eboot-size-plan.json `
   --groups russian-text `
   --json eboot-build.json

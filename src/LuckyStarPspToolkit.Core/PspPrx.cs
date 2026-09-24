@@ -77,6 +77,8 @@ public static class PspPrxReader
 {
     /// <summary>The fixed supported rgo tag value used by this format or revision.</summary>
     public const uint SupportedRgoTag = 0xD91613F0;
+    /// <summary>The verified NIM Type-2 PRX tag.</summary>
+    public const uint SupportedNimTag = 0xD9160BF0;
     /// <summary>The fixed header size value used by this format or revision.</summary>
     public const int HeaderSize = 0x150;
 
@@ -94,6 +96,13 @@ public static class PspPrxReader
     [
         0xEB, 0xFF, 0x40, 0xD8, 0xB4, 0x1A, 0xE1, 0x66,
         0x91, 0x3B, 0x8F, 0x64, 0xB6, 0xFC, 0xB7, 0x12
+    ];
+
+    /// <summary>The public Type-2 tag seed for NIM's 0xD9160BF0 envelope.</summary>
+    private static readonly byte[] TagKeyD9160BF0 =
+    [
+        0x83, 0x83, 0xF1, 0x37, 0x53, 0xD0, 0xBE, 0xFC,
+        0x8D, 0xA7, 0x32, 0x52, 0x46, 0x0A, 0xC2, 0xC2
     ];
 
     /// <summary>The kirk7 key5 d value used by this model or operation.</summary>
@@ -125,7 +134,7 @@ public static class PspPrxReader
     public static bool CanDecrypt(PspModuleHeader header)
     {
         ArgumentNullException.ThrowIfNull(header);
-        return header.Tag == SupportedRgoTag;
+        return header.Tag is SupportedRgoTag or SupportedNimTag;
     }
 
     /// <summary>
@@ -181,7 +190,7 @@ public static class PspPrxReader
             CompressedSize = BinaryData.ReadInt32LittleEndian(data, 0xB0, "PSP compressed size"),
             Tag = tag,
             OeTag = BinaryData.ReadUInt32LittleEndian(data, 0x130, "PSP OE tag"),
-            SupportedByThisBuild = tag == SupportedRgoTag
+            SupportedByThisBuild = tag is SupportedRgoTag or SupportedNimTag
         };
     }
 
@@ -196,14 +205,14 @@ public static class PspPrxReader
         PspModuleHeader header = ParseHeader(input);
         Guard.Require(CanDecrypt(header),
             $"Unsupported PSP PRX tag {HexUtilities.UInt32(header.Tag)}; " +
-            "this build intentionally supports only the verified ULJM05752 game tag.");
+            "this build supports only the verified RGO and NIM game tags.");
         Guard.Require(header.PspSize == input.Length,
             "PSP PRX file size differs from the size stored in its authenticated header.");
         Guard.Require(BinaryData.IsAllZero(BinaryData.Slice(
                 input, 0xD4, 0x58, "PSP Type-2 reserved signature area")),
             "Unsupported Type-2 PRX layout: reserved signature area is not empty.");
 
-        byte[] expandedSeed = ExpandSeed();
+        byte[] expandedSeed = ExpandSeed(header.Tag);
         byte[] authenticatedTail = new byte[0x64];
         CopyField(input, 0x140, authenticatedTail, 0x00, 0x10, "PSP Type-2 ID");
         CopyField(input, 0x12C, authenticatedTail, 0x10, 0x14, "PSP Type-2 SHA-1");
@@ -297,12 +306,19 @@ public static class PspPrxReader
     /// Expands seed while enforcing the relevant format and safety invariants.
     /// </summary>
     /// <returns>The resulting binary or typed sequence.</returns>
-    private static byte[] ExpandSeed()
+    /// <param name="tag">The authenticated PSP Type-2 tag selecting a known key.</param>
+    private static byte[] ExpandSeed(uint tag)
     {
+        ReadOnlySpan<byte> tagKey = tag switch
+        {
+            SupportedRgoTag => TagKeyD91613F0,
+            SupportedNimTag => TagKeyD9160BF0,
+            _ => throw new ToolkitException($"Unsupported PSP PRX tag {HexUtilities.UInt32(tag)}.")
+        };
         byte[] encoded = new byte[0x90];
         for (int offset = 0; offset < encoded.Length; offset += 0x10)
         {
-            TagKeyD91613F0.CopyTo(encoded, offset);
+            tagKey.CopyTo(encoded.AsSpan(offset, 0x10));
             encoded[offset] = (byte)(offset / 0x10);
         }
 
