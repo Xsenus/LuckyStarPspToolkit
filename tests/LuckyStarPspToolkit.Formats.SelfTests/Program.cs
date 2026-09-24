@@ -304,6 +304,27 @@ internal static partial class SelfTestRunner
             Equal(3000L, memory.GetEntry("psp_game/usrdir/data/multi.bin").Size);
         }
 
+        byte[] pspUmdVersionTwo = source.ToArray();
+        int primaryOffset = 16 * Iso9660Image.DescriptorSectorSize;
+        pspUmdVersionTwo[primaryOffset + 881] = 2;
+        pspUmdVersionTwo.AsSpan(primaryOffset + 8, 32).Fill((byte)' ');
+        pspUmdVersionTwo.AsSpan(primaryOffset + 574, 128).Fill((byte)' ');
+        "PSP GAME"u8.CopyTo(pspUmdVersionTwo.AsSpan(primaryOffset + 8));
+        "PSP GAME"u8.CopyTo(pspUmdVersionTwo.AsSpan(primaryOffset + 574));
+        using (Iso9660Image pspImage = Iso9660Image.Parse(pspUmdVersionTwo))
+        {
+            Equal(13, pspImage.Entries.Count);
+            Equal(3000L, pspImage.GetEntry("psp_game/usrdir/data/multi.bin").Size);
+        }
+
+        byte[] foreignVersionTwo = source.ToArray();
+        foreignVersionTwo[primaryOffset + 881] = 2;
+        Throws("ISO_FILE_STRUCTURE_VERSION", () => Iso9660Image.Parse(foreignVersionTwo).Dispose());
+
+        byte[] unsupportedVersion = pspUmdVersionTwo.ToArray();
+        unsupportedVersion[primaryOffset + 881] = 3;
+        Throws("ISO_FILE_STRUCTURE_VERSION", () => Iso9660Image.Parse(unsupportedVersion).Dispose());
+
         byte[] endianMismatch = source.ToArray();
         endianMismatch[(16 * Iso9660Image.DescriptorSectorSize) + 84] ^= 1;
         Throws("ISO_BOTH_ENDIAN", () => Iso9660Image.Parse(endianMismatch).Dispose());

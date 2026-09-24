@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.2 — 2026-09-24
+
+Accept PSP UMD ISO file-structure version 2 only when the primary volume's
+system and application identifiers both identify a PSP game. Fix inspection
+JSON serialization so the ignored binary payload does not make reports fail.
+Real RGO and NIM images now pass ISO listing, extraction, asset collection,
+CPK verification and unchanged-resource ISO rebuild. The RGO executable is
+the verified revision; the NIM executable uses an unsupported PRX tag.
+See [real-game audit](docs/REAL_GAME_AUDIT_0.19.2_RU.md).
+
 ## 0.19.1 — 2026-09-22
 
 Fix native .NET 9 compilation, enforce full EBOOT lineage in the public script-size

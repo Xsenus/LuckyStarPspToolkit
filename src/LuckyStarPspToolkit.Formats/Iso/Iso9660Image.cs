@@ -509,7 +509,13 @@ public sealed class Iso9660Image : IDisposable
                 "ISO_MULTI_VOLUME",
                 $"Multi-volume ISO sets are not supported (set size {volumeSetSize}, sequence {volumeSequence}).");
         }
-        if (primary[881] != 1)
+        // Retail PSP UMD images use file-structure version 2 while retaining
+        // ordinary directory records. Accept that variant only when both
+        // primary-volume identity fields identify a PSP game.
+        bool pspUmdVersionTwo = primary[881] == 2
+            && DecodePaddedAscii(primary.AsSpan(8, 32)) == "PSP GAME"
+            && DecodePaddedAscii(primary.AsSpan(574, 128)) == "PSP GAME";
+        if (primary[881] != 1 && !pspUmdVersionTwo)
         {
             throw new ToolkitException("ISO_FILE_STRUCTURE_VERSION", $"Unsupported ISO file structure version {primary[881]}.");
         }

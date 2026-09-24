@@ -19,6 +19,7 @@ internal static partial class Program
     public static int Main(string[] args)
     {
         Run("runtime self-test", TestRuntimeSelfTest);
+        Run("inspection JSON omits binary payload", TestInspectionJsonSerialization);
         Run("streaming CMAC independent vectors and source immutability", TestCmacIndependentVectors);
         Run("streaming CMAC pooled allocation bound", TestCmacAllocation);
         Run("ZIP path traversal rejection", TestZipTraversalRejected);
@@ -58,6 +59,35 @@ internal static partial class Program
         RuntimeSelfTestReport report = SelfDiagnostics.Run();
         Require(report.Passed,
             string.Join("; ", report.Cases.Where(item => !item.Passed).Select(item => item.Error)));
+    }
+
+    /// <summary>
+    /// Verifies that inspection reports serialize without leaking binary payloads.
+    /// </summary>
+    private static void TestInspectionJsonSerialization()
+    {
+        InspectionResult result = new()
+        {
+            Input = "sample.bin",
+            ContainerKind = InputContainerKind.File,
+            TotalUncompressedSize = 3,
+            Files = [new FileProbe
+            {
+                LogicalPath = "sample.bin",
+                Size = 3,
+                Sha256 = new string('0', 64),
+                Kind = FileKind.Unknown,
+                Role = "test",
+                Data = [1, 2, 3]
+            }],
+            Warnings = []
+        };
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(
+            JsonDefaults.Serialize(result));
+        System.Text.Json.JsonElement probe = document.RootElement.GetProperty("files")[0];
+        Require(!probe.TryGetProperty("data", out _), "Inspection JSON exposed its binary payload.");
+        Require(probe.GetProperty("logical_path").GetString() == "sample.bin",
+            "Inspection JSON omitted the file path.");
     }
 
     /// <summary>

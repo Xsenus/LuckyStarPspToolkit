@@ -73,7 +73,7 @@ public sealed class FileProbe
 
     /// <summary>The byte payload associated with this record.</summary>
     [JsonIgnore]
-    public required byte[] Data { get; init; }
+    public byte[] Data { get; init; } = Array.Empty<byte>();
 
     /// <summary>The base name value used by this model or operation.</summary>
     [JsonIgnore]
