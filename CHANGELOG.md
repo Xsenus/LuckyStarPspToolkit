@@ -10,6 +10,12 @@ CPK verification and unchanged-resource ISO rebuild. The RGO executable is
 the verified revision; the NIM executable uses an unsupported PRX tag.
 See [real-game audit](docs/REAL_GAME_AUDIT_0.19.2_RU.md).
 
+Дополнительная проверка RGO в PPSSPP подтвердила показ двух пробных русских
+реплик в ISO без VWF-патча. Вариант с VWF-патчем скрывает японские символы
+экранной клавиатуры имени; профиль требует исправления до выпуска локализации.
+Полная игровая приёмка RGO и NIM пока не завершена. Точные условия и результаты
+зафиксированы в том же отчёте.
+
 ## 0.19.1 — 2026-09-22
 
 Fix native .NET 9 compilation, enforce full EBOOT lineage in the public script-size
