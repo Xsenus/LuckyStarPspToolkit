@@ -9,6 +9,7 @@ Primary references checked while preparing the release process (21 September 202
 Historical interoperability references; inclusion here is attribution, not a permission grant:
 
 - https://github.com/TimepieceMaster/RyououGakuenToolkit/tree/e734977fc55b39e30a5fbf2b3e52e12443b737b2
+- RGO character-index table for ULJM05752: https://github.com/TimepieceMaster/RyououGakuenToolkit/blob/e734977fc55b39e30a5fbf2b3e52e12443b737b2/apps/RGOScriptExtractor/resources/rgo_font_strings.txt (3543 lines; original UTF-8/LF SHA-256 `d6bbd07170dce78f34ee363e7d910d7a912886e83ab4851cb78f54cf66513d89`; no upstream license found at this revision).
 - https://github.com/hrydgard/ppsspp/tree/master/Core/ELF
 - https://github.com/hrydgard/ppsspp/tree/master/ext/libkirk
 

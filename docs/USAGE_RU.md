@@ -106,7 +106,34 @@ New-Item -ItemType Directory -Force .\private | Out-Null
 
 ## 6. Рабочий процесс перевода после получения данных
 
-Сначала `cpk-verify`, затем `font-inspect` с проверенной картой глифов. Не используйте `examples/glyph-map.example.txt` или карту синтетического теста для реальной игры: это другие индексы. Выгрузка:
+Для **RGO ULJM05752** исходную индексную карту можно получить из
+[`rgo_font_strings.txt` в RyououGakuenToolkit](https://github.com/TimepieceMaster/RyououGakuenToolkit/blob/e734977fc55b39e30a5fbf2b3e52e12443b737b2/apps/RGOScriptExtractor/resources/rgo_font_strings.txt).
+Прямой файл в исходном UTF-8/LF содержит 3543 строки; номер строки, начиная с
+нуля, соответствует индексу глифа. Не сортируйте строки и не удаляйте пустые.
+Если карта отсутствует, сохраните её в отдельную рабочую папку:
+
+```powershell
+$mapUrl = 'https://raw.githubusercontent.com/TimepieceMaster/RyououGakuenToolkit/e734977fc55b39e30a5fbf2b3e52e12443b737b2/apps/RGOScriptExtractor/resources/rgo_font_strings.txt'
+Invoke-WebRequest -Uri $mapUrl -OutFile '.\private\verified-glyph-map.txt'
+(Get-FileHash '.\private\verified-glyph-map.txt' -Algorithm SHA256).Hash
+& $exe glyph-map-validate '.\private\verified-glyph-map.txt'
+```
+
+Ожидаемый SHA-256 скачанного файла с LF: `D6BBD07170DCE78F34EE363E7D910D7A912886E83AB4851CB78F54CF66513D89`;
+`glyph-map-validate` должен показать 3543 записи. Копия с переводами строк
+CRLF имеет другой хэш, хотя индексы те же. Карта проверена на исходных RGO
+`lt.bin` (3543 глифа) и `sc.cpk`: экспорт сценария 0 и его неизменённая
+валидация прошли. Карта **не подходит для NIM** и **не содержит кириллицы**.
+`font-inspect` с исходным RGO-шрифтом поэтому сообщает `0/66` русских букв и
+код 2; это не ошибка чтения карты. Для русского перевода нужна отдельная
+согласованная карта с проверенно свободными индексами и изменённый `lt.bin`.
+Если изменить карту после экспорта, создайте workspace заново. Происхождение
+таблицы указано в [источниках](SOURCES.md); явная лицензия на её
+распространение в исходном репозитории не обнаружена.
+
+Сначала `cpk-verify`, затем проверка карты. Не используйте
+`examples/glyph-map.example.txt` или карту синтетического теста для реальной
+игры: это другие индексы. Выгрузка:
 
 ```powershell
 & $exe workspace-export '.\private\sc.cpk' '.\private\verified-glyph-map.txt' '.\private\translation' --game rgo
