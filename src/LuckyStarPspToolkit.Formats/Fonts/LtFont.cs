@@ -130,7 +130,14 @@ public sealed record LtFontAnalysis(
     int RenderableRussianCharacterCount,
     bool RussianReady,
     IReadOnlyList<LtFontRussianGlyphStatus> RussianGlyphs,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings)
+{
+    /// <summary>Counts mapped Russian letters with bitmap ink, independently of VWF advance metadata.</summary>
+    public int RussianBitmapCharacterCount => RussianGlyphs.Count(static item => item.Mapped && item.NonBlank);
+
+    /// <summary>Whether every required Russian letter has bitmap ink; this does not prove game runtime behavior.</summary>
+    public bool RussianBitmapsComplete => RussianBitmapCharacterCount == RequiredRussianCharacterCount;
+}
 
 /// <summary>
 /// Represents the toolkit's lt font model or service.
@@ -442,7 +449,7 @@ public sealed class LtFont
         if (map is not null && !ready)
         {
             warnings.Add(
-                $"Russian alphabet readiness is incomplete: {renderableCount}/{russian.Count} required characters have mapped, non-blank glyphs with a valid advance width.");
+                $"VWF advance readiness is incomplete: {renderableCount}/{russian.Count} required characters have mapped, non-blank glyphs with a valid advance width. Zero advances do not imply missing bitmap letters in a fixed-spacing renderer.");
         }
 
         return new LtFontAnalysis(

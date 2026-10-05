@@ -13,6 +13,7 @@
 | Запустить сервер и выдать доступ | [Инструкция владельца](LICENSE_OWNER_RU.md), [React-панель](ADMIN_WEB_RU.md), [эксплуатация VPS](VPS_DEPLOYMENT_RU.md) |
 | Активировать полученный клиент | [Инструкция клиента](LICENSE_CUSTOMER_RU.md) |
 | Работать над переводом | [Рабочий процесс](WORKFLOW_RU.md), [CLI](CLI_REFERENCE.md) |
+| Редактировать надписи в атласах интерфейса RGO | [Изображения меню](MENU_IMAGES_RU.md) |
 | Разрабатывать и проверять код | [Разработка](DEVELOPMENT.md), [Тестирование](TESTING.md) |
 | Выпустить пакеты или опубликовать изменения | [Сборка и релизы](BUILD_AND_RELEASE_RU.md), [GitHub](GITHUB_PUBLISH_RU.md) |
 | Разобраться с ошибкой | [Диагностика](TROUBLESHOOTING.md), [поддержка](../SUPPORT.md) |

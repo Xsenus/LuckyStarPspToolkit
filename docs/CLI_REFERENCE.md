@@ -57,12 +57,76 @@ lsptool apply-eboot-plan <decrypted-EBOOT.ELF> <plan.json> <patched-EBOOT.ELF>
 
 Only `translationSpeaker`, `translationMessage`, and `translationText` are translator-editable. Source fields, IDs, terminators, and origin hashes are integrity-protected.
 
-## Font commands
+## Speaker-name catalogues
 
 ```text
-lsptool font-inspect <lt.bin> <glyph-map.txt> [--preview atlas.png] [--json report.json]
+lsptool workspace-names-export <workspace-dir> <source-sc.cpk> <names.json>
+lsptool workspace-names-apply <workspace-dir> <source-sc.cpk> <names.json> <new-workspace-dir>
+```
+
+Edit only `translationSpeaker` in `names.json`. Null leaves existing translations
+alone; an empty string clears matching names. Non-null translations apply to
+every exact source-name match. Keep source names, occurrence counts and hashes.
+Applying validates the original workspace and publishes a separate validated
+copy; the output directory must not exist. Subsequent validate/build commands
+must use that new workspace. This changes dialogue names, not graphical menus.
+
+## Font inspection and import
+
+```text
+lsptool font-inspect <lt.bin> <glyph-map.txt> [--spacing fixed|variable] [--preview atlas.png] [--json report.json]
+lsptool font-export-bdf <lt.bin> <glyph-map.txt> <output.bdf> [--json report.json]
 lsptool font-import-bdf <lt.bin> <glyph-map.txt> <font.bdf> <output-lt.bin> --mode russian [--preview atlas.png] [--json report.json]
 ```
+
+`font-inspect` defaults to `--spacing fixed`: success means all 66 Russian letters
+have mapped bitmap ink. `--spacing variable` additionally requires valid nonzero
+VWF advance widths. The report exposes bitmap coverage separately from VWF
+readiness; neither mode proves that an edited game renders correctly at runtime.
+`font-import-bdf` still validates VWF widths for imported letters.
+
+`font-export-bdf` creates an editable 66-letter Cyrillic BDF template from the
+existing mapped bitmaps, including letters with zero VWF advances. It preserves
+cell positions, uses baseline 15 and fixed advances of 18. Nonzero LT pixel
+levels become monochrome ink: this is an editing template, not a lossless font
+backup. Import edited templates with `--baseline 15 --replace-existing` into a
+new LT file; never replace the only copy of the original game font.
+
+## RGO interface images
+
+```text
+lsptool menu-export <original-rgo-pr.bin> <new-image-dir> [--json report.json]
+lsptool menu-build <original-rgo-pr.bin> <image-dir> <new-pr.bin> [--quantize] [--json report.json]
+```
+
+These commands support the exact original ULJM05752 PR resource and export ten
+PNG atlases plus `menu-images.json`. Edit lettering inside its existing image
+regions; preserve dimensions, filenames, positions and the manifest. Keep all
+ten PNG files, including unchanged ones. Use the original resource for every
+build, and write to a separate output file. Original palettes and allocation
+sizes are preserved. Aligned compressed-image checksums and the trailing
+PR resource checksum are recalculated automatically. By default edited colors must match the original palette;
+`--quantize` explicitly permits nearest-palette matching. Oversized compressed
+textures are refused before output is written.
+
+This covers PR interface atlases, including save/load and settings labels. It
+does not cover all title-screen or `union.cpk` graphics, other PR revisions or
+NIM menus. Resource validation does not certify runtime display: rebuild a copy
+of the ISO and inspect each changed screen in the game.
+
+```text
+lsptool menu-union-export <original-rgo-union.cpk> <new-image-dir> [--json report.json]
+lsptool menu-union-build <original-rgo-union.cpk> <image-dir> <new-union.cpk> [--quantize] [--json report.json]
+```
+
+The union commands support 25 authenticated PNG atlases in original RGO
+resources 2529 (name entry), 2530 (options), 2531 (save) and 2533 (Extra).
+Keep all PNG files, their sizes and positions, and `union-menu-images.json`.
+Build from the original archive into a separate output. Entry sizes, CPK
+offsets, palettes and unrelated bytes are preserved; image and resource
+checksums are recalculated. This fixed-allocation mode requires no EBOOT
+size/offset patch. Oversized compressed edits are rejected. Other resources,
+revisions and NIM menus are unsupported. Reports retain `gameRuntimeVerified=false`.
 
 ## ISO commands
 

@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using LuckyStarPspToolkit.Formats.Audit;
 using LuckyStarPspToolkit.Formats.Common;
@@ -53,6 +54,8 @@ internal static partial class SelfTestRunner
             Test("glyph map round-trip, analysis, and unsupported glyph", TestGlyphMap);
             Test("lt.bin parse/build and PNG preview", TestLtFont);
             Test("BDF Cyrillic import and Russian readiness", TestBdfFontPatch);
+            Test("PNG independent filters, color depths and transparency", ImageCodecTests.RunPng);
+            Test("PSP indexed texture, gzip and palette-preserving edits", ImageCodecTests.RunTextures);
             Test("ISO 9660 parse, lookup, and multi-extent extraction", TestIso9660);
             Test("transactional deterministic ISO 9660 rebuild", TestIsoRebuild);
             Test("PSP asset bundle collection and atomic stream writes", TestAssetCollection);
@@ -109,6 +112,12 @@ internal static partial class SelfTestRunner
             string? nimEboot = ReadOption(args, "--nim-eboot");
             if (nimEboot is not null)
                 Test("private NIM EBOOT authenticated decryption", () => TestNimEboot(nimEboot));
+            string? rgoMenu = ReadOption(args, "--rgo-menu-pr");
+            if (rgoMenu is not null)
+                Test("private RGO menu PNG export, edit and rebuild", () => TestRealMenus(rgoMenu));
+            string? rgoUnionMenu = ReadOption(args, "--rgo-menu-union");
+            if (rgoUnionMenu is not null)
+                Test("private RGO union menu fixed-allocation export and rebuild", () => TestRealUnionMenus(rgoUnionMenu));
             Console.WriteLine($"SELF-TEST RESULT: {_passed} passed, 0 failed");
             return 0;
         }
@@ -139,6 +148,11 @@ internal static partial class SelfTestRunner
         GlyphMap map = GlyphMap.Load(Path.Combine(Fixtures, "glyph-map.txt"));
         ushort[] encoded = map.Encode("АБа\nб{{FIRST_NAME}}");
         Equal("АБа\nб{{FIRST_NAME}}", map.Decode(encoded));
+        SequenceEqual(new ushort[] { 1, 0xFFFE, 2 }, map.Encode("A\nB"));
+        using (JsonDocument newlineJson = JsonDocument.Parse("{\"translationMessage\":\"A\\nB\"}"))
+        {
+            Equal("A\nB", map.Decode(map.Encode(newlineJson.RootElement.GetProperty("translationMessage").GetString()!)));
+        }
         Throws("GLYPH_NOT_FOUND", () => map.Encode("Ω"));
         Throws(
             "GLYPH_MAP_LIMIT",
@@ -228,6 +242,20 @@ internal static partial class SelfTestRunner
         Equal(0, secondPass.PatchedGlyphCount);
         Equal(66, secondPass.ExistingGlyphCount);
         SequenceEqual(actual, secondPass.Font.Build());
+
+        LtFont fixedSpacing = LtFont.Parse(actual, map.Count);
+        foreach (LtGlyph glyph in fixedSpacing.Glyphs)
+        {
+            fixedSpacing.ReplaceGlyph(glyph.Index, glyph.Levels, 0);
+        }
+        LtFontAnalysis fixedAnalysis = fixedSpacing.Analyze(map);
+        Equal(66, fixedAnalysis.RussianBitmapCharacterCount);
+        True(fixedAnalysis.RussianBitmapsComplete, "Zero VWF advances must not hide existing bitmap letters.");
+        True(!fixedAnalysis.RussianReady, "Zero advances must remain unsuitable for VWF.");
+        LtFont reloadedFixed = LtFont.Parse(fixedSpacing.Build(), map.Count);
+        Equal(66, reloadedFixed.Analyze(map).RussianBitmapCharacterCount);
+        reloadedFixed.ReplaceGlyph(3, new byte[LtFont.GlyphWidth * LtFont.GlyphHeight], 0);
+        True(!reloadedFixed.Analyze(map).RussianBitmapsComplete, "A blank bitmap must fail fixed-spacing coverage.");
 
         LtFontPatchResult clipped = LtFontPatcher.ApplyBdf(
             source,
@@ -1593,6 +1621,39 @@ internal static partial class SelfTestRunner
                 File.ReadAllBytes(patchedFont));
             True(File.Exists(fontPreviewAfter), "Font patch did not create a PNG preview.");
             Equal(0, CommandApplication.RunCore(["font-inspect", patchedFont, glyphMap]));
+            string exportedBdf = Path.Combine(temp, "exported-russian.bdf");
+            Equal(0, CommandApplication.RunCore(["font-export-bdf", patchedFont, glyphMap, exportedBdf]));
+            BdfFont exportedFont = BdfFont.Load(exportedBdf);
+            Equal(66, exportedFont.EncodedGlyphCount);
+            GlyphMap exportMap = GlyphMap.Load(glyphMap);
+            LtFont exportSource = LtFont.Parse(File.ReadAllBytes(patchedFont), exportMap.Count);
+            foreach (Rune letter in LtFont.RequiredRussianCharacters.EnumerateRunes())
+            {
+                True(exportMap.TryGetLowestIndex(letter.ToString(), out ushort letterIndex), "Russian export letter must be mapped.");
+                BdfRasterizedGlyph raster = exportedFont.Rasterize(letter);
+                Equal(0, raster.ClippedPixelCount);
+                SequenceEqual(exportSource.GetGlyph(letterIndex).Levels.Select(static level => level == 0 ? (byte)0 : (byte)3).ToArray(), raster.Levels);
+            }
+            SequenceEqual(File.ReadAllBytes(Path.Combine(Fixtures, "reference-lt-russian.bin")), File.ReadAllBytes(patchedFont));
+            Equal(3, CommandApplication.RunCore(["font-export-bdf", patchedFont, glyphMap, glyphMap]));
+
+            LtFont fixedFont = LtFont.Parse(File.ReadAllBytes(patchedFont), GlyphMap.Load(glyphMap).Count);
+            foreach (LtGlyph glyph in fixedFont.Glyphs)
+            {
+                fixedFont.ReplaceGlyph(glyph.Index, glyph.Levels, 0);
+            }
+            string fixedFontPath = Path.Combine(temp, "lt-fixed.bin");
+            File.WriteAllBytes(fixedFontPath, fixedFont.Build());
+            Equal(0, CommandApplication.RunCore(["font-export-bdf", fixedFontPath, glyphMap, exportedBdf]));
+            Equal(0, CommandApplication.RunCore(["font-inspect", fixedFontPath, glyphMap, "--json", fontInspectReport]));
+            using (JsonDocument fixedReport = JsonDocument.Parse(File.ReadAllText(fontInspectReport)))
+            {
+                Equal("fixed", fixedReport.RootElement.GetProperty("spacing").GetString()!);
+                True(fixedReport.RootElement.GetProperty("inspectionComplete").GetBoolean(), "Existing bitmaps must pass fixed inspection.");
+                True(!fixedReport.RootElement.GetProperty("gameRuntimeVerified").GetBoolean(), "Inspection must not claim gameplay verification.");
+            }
+            Equal(2, CommandApplication.RunCore(["font-inspect", fixedFontPath, glyphMap, "--spacing", "variable"]));
+            Equal(3, CommandApplication.RunCore(["font-inspect", fixedFontPath, glyphMap, "--spacing", "unknown"]));
 
             byte[] originalFont = File.ReadAllBytes(sourceFont);
             Equal(3, CommandApplication.RunCore([
@@ -1603,6 +1664,36 @@ internal static partial class SelfTestRunner
             _ = TranslationWorkspaceService.Export(protectedCpk, glyphMap, workspace, ScriptProfile.Rgo, [0]);
             string manifest = Path.Combine(workspace, "workspace.json");
             byte[] originalManifest = File.ReadAllBytes(manifest);
+            string namesPath = Path.Combine(temp, "names.json");
+            Equal(0, CommandApplication.RunCore(["workspace-names-export", workspace, protectedCpk, namesPath]));
+            True(File.ReadAllText(namesPath).Contains("\"translationSpeaker\": null", StringComparison.Ordinal), "Catalogue must expose editable replacement fields.");
+            WorkspaceNameCatalog names = TranslationWorkspaceService.ExportNames(workspace, protectedCpk, namesPath);
+            True(names.Names.Count > 0, "Fixture must export speaker names.");
+            string originalScriptPath = Path.Combine(workspace, "script-0000.json");
+            byte[] originalScript = File.ReadAllBytes(originalScriptPath);
+            names.Names[0].TranslationSpeaker = "А";
+            File.WriteAllText(namesPath, JsonSerializer.Serialize(names, EbootSizePatchPlan.JsonOptions));
+            string namedWorkspace = Path.Combine(temp, "named-workspace");
+            Equal(0, CommandApplication.RunCore(["workspace-names-apply", workspace, protectedCpk, namesPath, namedWorkspace]));
+            SequenceEqual(originalScript, File.ReadAllBytes(originalScriptPath));
+            TranslationScriptFile namedScript = JsonSerializer.Deserialize<TranslationScriptFile>(File.ReadAllBytes(Path.Combine(namedWorkspace, "script-0000.json")), EbootSizePatchPlan.JsonOptions)!;
+            foreach (TranslationDialog dialog in namedScript.Dialogs.Where(dialog => dialog.SourceSpeaker == names.Names[0].SourceSpeaker))
+            {
+                Equal("А", dialog.TranslationSpeaker!);
+            }
+            Equal(3, CommandApplication.RunCore(["workspace-names-apply", workspace, protectedCpk, namesPath, namedWorkspace]));
+            names.Names.Add(names.Names[0]);
+            File.WriteAllText(namesPath, JsonSerializer.Serialize(names, EbootSizePatchPlan.JsonOptions));
+            string rejectedNamesOutput = Path.Combine(temp, "rejected-names");
+            Equal(3, CommandApplication.RunCore(["workspace-names-apply", workspace, protectedCpk, namesPath, rejectedNamesOutput]));
+            True(!Directory.Exists(rejectedNamesOutput), "Duplicate catalogue entries must not publish a workspace.");
+            names.Names.RemoveAt(names.Names.Count - 1);
+            names.SourceCpkSha256 = new string('0', 64);
+            File.WriteAllText(namesPath, JsonSerializer.Serialize(names, EbootSizePatchPlan.JsonOptions));
+            Equal(3, CommandApplication.RunCore(["workspace-names-apply", workspace, protectedCpk, namesPath, rejectedNamesOutput]));
+            True(!Directory.Exists(rejectedNamesOutput), "Mismatched catalogue source must not publish a workspace.");
+            Equal(3, CommandApplication.RunCore(["workspace-names-export", workspace, protectedCpk, originalScriptPath]));
+            SequenceEqual(originalScript, File.ReadAllBytes(originalScriptPath));
             Equal(3, CommandApplication.RunCore(["workspace-validate", workspace, protectedCpk, "--json", manifest]));
             SequenceEqual(originalManifest, File.ReadAllBytes(manifest));
 

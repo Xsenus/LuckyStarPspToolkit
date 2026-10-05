@@ -9,7 +9,7 @@ namespace LuckyStarPspToolkit.Formats.Workspace;
 /// <summary>
 /// Provides the toolkit's translation workspace service workflow.
 /// </summary>
-public static class TranslationWorkspaceService
+public static partial class TranslationWorkspaceService
 {
     /// <summary>The fixed manifest file name value used by this format or revision.</summary>
     private const string ManifestFileName = "workspace.json";

@@ -7,6 +7,7 @@ using LuckyStarPspToolkit.Formats.Cri;
 using LuckyStarPspToolkit.Formats.Diagnostics;
 using LuckyStarPspToolkit.Formats.Fonts;
 using LuckyStarPspToolkit.Formats.Iso;
+using LuckyStarPspToolkit.Formats.Images;
 using LuckyStarPspToolkit.Formats.Scripts;
 using LuckyStarPspToolkit.Formats.Text;
 using LuckyStarPspToolkit.Formats.Workspace;
@@ -88,8 +89,15 @@ public static class CommandApplication
                 "script-inspect" => ScriptInspect(tail),
                 "glyph-map-validate" => GlyphMapValidate(tail),
                 "font-inspect" => FontInspect(tail),
+                "font-export-bdf" => FontExportBdf(tail),
+                "menu-export" => MenuExport(tail),
+                "menu-build" => MenuBuild(tail),
+                "menu-union-export" => MenuUnionExport(tail),
+                "menu-union-build" => MenuUnionBuild(tail),
                 "font-import-bdf" => FontImportBdf(tail),
                 "workspace-export" => WorkspaceExport(tail),
+                "workspace-names-export" => WorkspaceNamesExport(tail),
+                "workspace-names-apply" => WorkspaceNamesApply(tail),
                 "workspace-validate" => WorkspaceValidate(tail),
                 "workspace-build" => WorkspaceBuild(tail),
                 "apply-eboot-plan" => ApplyEbootPlan(tail),
@@ -1048,7 +1056,12 @@ public static class CommandApplication
         ParsedArguments options = ParsedArguments.Parse(
             args,
             2,
-            ["--preview", "--columns", "--scale", "--gutter", "--json"]);
+            ["--preview", "--columns", "--scale", "--gutter", "--spacing", "--json"]);
+        string spacing = options.GetOption("--spacing") ?? "fixed";
+        if (spacing is not ("fixed" or "variable"))
+        {
+            throw new FormatToolkitException("FONT_SPACING", "--spacing must be fixed or variable.");
+        }
         string fontPath = FormatPathUtilities.Normalize(options.Positionals[0]);
         string mapPath = FormatPathUtilities.Normalize(options.Positionals[1]);
         string? previewPath = options.GetOption("--preview");
@@ -1093,6 +1106,9 @@ public static class CommandApplication
             glyphMap = mapPath,
             glyphMapSha256 = map.SourceSha256,
             preview = previewPath,
+            spacing,
+            inspectionComplete = spacing == "fixed" ? analysis.RussianBitmapsComplete : analysis.RussianReady,
+            gameRuntimeVerified = false,
             analysis
         };
         var human = new StringBuilder();
@@ -1102,8 +1118,9 @@ public static class CommandApplication
             $"  glyphs: {analysis.GlyphCount}; non-blank: {analysis.NonBlankGlyphCount}; " +
             $"blank: {analysis.BlankGlyphCount}; padding: {analysis.PaddingByteCount} bytes");
         human.AppendLine(
-            $"  Russian readiness: {analysis.RenderableRussianCharacterCount}/{analysis.RequiredRussianCharacterCount} " +
-            $"({(analysis.RussianReady ? "ready" : "incomplete")})");
+            $"  Russian bitmaps: {analysis.RussianBitmapCharacterCount}/{analysis.RequiredRussianCharacterCount}; " +
+            $"VWF advances: {analysis.RenderableRussianCharacterCount}/{analysis.RequiredRussianCharacterCount}; spacing: {spacing}");
+        human.AppendLine("  Bitmap/advance inspection does not verify rendering in the game.");
         if (previewPath is not null)
         {
             human.AppendLine($"  preview: {previewPath}");
@@ -1117,7 +1134,93 @@ public static class CommandApplication
             human.ToString(),
             Serialize(model),
             options.GetOption("--json"));
-        return analysis.RussianReady ? ExitSuccess : ExitIncomplete;
+        return (spacing == "fixed" ? analysis.RussianBitmapsComplete : analysis.RussianReady)
+            ? ExitSuccess : ExitIncomplete;
+    }
+
+    /// <summary>Exports a Cyrillic BDF editing template from existing mapped LT bitmap letters.</summary>
+    /// <param name="args">The LT font, character map and BDF output arguments.</param>
+    /// <returns>The command exit code.</returns>
+    private static int FontExportBdf(string[] args)
+    {
+        ParsedArguments options = ParsedArguments.Parse(args, 3, ["--json"]);
+        string source = FormatPathUtilities.Normalize(options.Positionals[0]);
+        string mapPath = FormatPathUtilities.Normalize(options.Positionals[1]);
+        string output = FormatPathUtilities.Normalize(options.Positionals[2]);
+        FormatPathUtilities.RequireDifferent(output, source, "FONT_OUTPUT_SOURCE", "BDF output must differ from the source LT font.");
+        FormatPathUtilities.RequireDifferent(output, mapPath, "FONT_OUTPUT_MAP", "BDF output must differ from the glyph map.");
+        RequireReportDifferent(options.GetOption("--json"), source, mapPath, output);
+        GlyphMap map = GlyphMap.Load(mapPath);
+        LtFont font = LtFont.Parse(FormatBinaryUtilities.ReadAllBytesBounded(source), map.Count);
+        byte[] bdf = FormatBinaryUtilities.Utf8(LtFontBdfExporter.ExportRussian(font, map));
+        var report = new
+        {
+            schema = "lucky-star-psp.font-export-bdf.v1",
+            sourceSha256 = font.SourceSha256,
+            glyphMapSha256 = map.SourceSha256,
+            output,
+            characterCount = 66,
+            baseline = 15,
+            advanceWidth = 18,
+            monochrome = true,
+            gameRuntimeVerified = false
+        };
+        CommitArtifactsAndWriteReport([new(output, bdf)],
+            $"Russian BDF template: {output}{Environment.NewLine}66 letters; monochrome; baseline 15; fixed advance 18. Source font unchanged.{Environment.NewLine}",
+            Serialize(report), options.GetOption("--json"));
+        return ExitSuccess;
+    }
+
+    /// <summary>Exports the ten authenticated RGO PR interface images into an isolated PNG workspace.</summary>
+    /// <param name="args">The original PR resource and output directory arguments.</param>
+    /// <returns>The successful command exit code.</returns>
+    private static int MenuExport(string[] args)
+    {
+        ParsedArguments options = ParsedArguments.Parse(args, 2, ["--json"]);
+        RequireReportDifferent(options.GetOption("--json"), options.Positionals[0]);
+        RequireReportOutside(options.GetOption("--json"), options.Positionals[1]);
+        MenuImageManifest manifest = RgoMenuImages.Export(options.Positionals[0], options.Positionals[1]);
+        WriteReport($"RGO interface images exported: {manifest.Images.Count}{Environment.NewLine}Edit original-size pr-XXXX.png files; keep menu-images.json unchanged.{Environment.NewLine}", Serialize(manifest), options.GetOption("--json"));
+        return ExitSuccess;
+    }
+
+    /// <summary>Rebuilds original-size PNG edits into a separate PR resource while retaining palettes and allocations.</summary>
+    /// <param name="args">The original PR resource, image workspace and new resource output arguments.</param>
+    /// <returns>The successful command exit code.</returns>
+    private static int MenuBuild(string[] args)
+    {
+        ParsedArguments options = ParsedArguments.Parse(args, 3, ["--json"], ["--quantize"]);
+        RequireReportDifferent(options.GetOption("--json"), options.Positionals[0], options.Positionals[2]);
+        RequireReportOutside(options.GetOption("--json"), options.Positionals[1]);
+        MenuImageBuildResult result = RgoMenuImages.Build(options.Positionals[0], options.Positionals[1], options.Positionals[2], options.HasFlag("--quantize"));
+        WriteReport($"RGO PR resource built: {result.OutputPath}{Environment.NewLine}Changed images: {result.ChangedImages.Count}; unchanged binary: {result.ByteIdentical}; game runtime verified: false.{Environment.NewLine}", Serialize(result), options.GetOption("--json"));
+        return ExitSuccess;
+    }
+
+    /// <summary>Exports authenticated union menu textures into an isolated PNG workspace.</summary>
+    /// <param name="args">The original union archive and new workspace arguments.</param>
+    /// <returns>The successful command exit code.</returns>
+    private static int MenuUnionExport(string[] args)
+    {
+        ParsedArguments options = ParsedArguments.Parse(args, 2, ["--json"]);
+        RequireReportDifferent(options.GetOption("--json"), options.Positionals[0]);
+        RequireReportOutside(options.GetOption("--json"), options.Positionals[1]);
+        UnionMenuImageManifest result = RgoUnionMenuImages.Export(options.Positionals[0], options.Positionals[1]);
+        WriteReport($"RGO union menu images exported: {result.Files.Sum(file => file.Images.Count)}{Environment.NewLine}Keep PNG sizes, positions and union-menu-images.json unchanged.{Environment.NewLine}", Serialize(result), options.GetOption("--json"));
+        return ExitSuccess;
+    }
+
+    /// <summary>Rebuilds fixed-allocation union menu PNG edits into a separate archive.</summary>
+    /// <param name="args">The original archive, workspace and output arguments.</param>
+    /// <returns>The successful command exit code.</returns>
+    private static int MenuUnionBuild(string[] args)
+    {
+        ParsedArguments options = ParsedArguments.Parse(args, 3, ["--json"], ["--quantize"]);
+        RequireReportDifferent(options.GetOption("--json"), options.Positionals[0], options.Positionals[2]);
+        RequireReportOutside(options.GetOption("--json"), options.Positionals[1]);
+        UnionMenuImageBuildResult result = RgoUnionMenuImages.Build(options.Positionals[0], options.Positionals[1], options.Positionals[2], options.HasFlag("--quantize"));
+        WriteReport($"RGO union menu archive built: {result.OutputPath}{Environment.NewLine}Changed images: {result.ChangedImages.Count}; unchanged binary: {result.ByteIdentical}; game runtime verified: false.{Environment.NewLine}", Serialize(result), options.GetOption("--json"));
+        return ExitSuccess;
     }
 
     /// <summary>
@@ -1303,6 +1406,33 @@ public static class CommandApplication
         WorkspaceValidationResult result = TranslationWorkspaceService.Validate(
             options.Positionals[0],
             options.Positionals[1]);
+        WriteReport(WorkspaceValidationToHuman(result), Serialize(result), options.GetOption("--json"));
+        return ExitSuccess;
+    }
+
+    /// <summary>Exports a source-bound catalogue of unique dialogue speaker names.</summary>
+    /// <param name="args">Workspace, original CPK and catalogue output arguments.</param>
+    /// <returns>The successful command exit code, or an error handled by the command dispatcher.</returns>
+    private static int WorkspaceNamesExport(string[] args)
+    {
+        ParsedArguments options = ParsedArguments.Parse(args, 3, ["--json"]);
+        RequireReportOutside(options.GetOption("--json"), options.Positionals[0]);
+        RequireReportDifferent(options.GetOption("--json"), options.Positionals[1], options.Positionals[2]);
+        WorkspaceNameCatalog catalog = TranslationWorkspaceService.ExportNames(options.Positionals[0], options.Positionals[1], options.Positionals[2]);
+        WriteReport($"Names exported: {catalog.Names.Count}{Environment.NewLine}", Serialize(catalog), options.GetOption("--json"));
+        return ExitSuccess;
+    }
+
+    /// <summary>Applies catalogue names to a separate validated workspace, preserving original files.</summary>
+    /// <param name="args">Workspace, original CPK, catalogue and new output directory arguments.</param>
+    /// <returns>The successful command exit code, or an error handled by the command dispatcher.</returns>
+    private static int WorkspaceNamesApply(string[] args)
+    {
+        ParsedArguments options = ParsedArguments.Parse(args, 4, ["--json"]);
+        RequireReportOutside(options.GetOption("--json"), options.Positionals[0]);
+        RequireReportOutside(options.GetOption("--json"), options.Positionals[3]);
+        RequireReportDifferent(options.GetOption("--json"), options.Positionals[1], options.Positionals[2]);
+        WorkspaceValidationResult result = TranslationWorkspaceService.ApplyNames(options.Positionals[0], options.Positionals[1], options.Positionals[2], options.Positionals[3]);
         WriteReport(WorkspaceValidationToHuman(result), Serialize(result), options.GetOption("--json"));
         return ExitSuccess;
     }
@@ -1905,9 +2035,16 @@ public static class CommandApplication
         writer.WriteLine("  lsptool cpk-replace <archive.cpk> <id> <replacement.bin> <output.cpk> [--json <path|->]");
         writer.WriteLine("  lsptool script-inspect <script.bin> [--game rgo|nim] [--json <path|->]");
         writer.WriteLine("  lsptool glyph-map-validate <glyph-map.txt> [--json <path|->]");
-        writer.WriteLine("  lsptool font-inspect <lt.bin> <glyph-map.txt> [--preview <atlas.png>] [--columns N] [--scale N] [--gutter N] [--json <path|->]");
+        writer.WriteLine("  lsptool font-inspect <lt.bin> <glyph-map.txt> [--spacing fixed|variable] [--preview <atlas.png>] [--columns N] [--scale N] [--gutter N] [--json <path|->]");
+        writer.WriteLine("  lsptool font-export-bdf <lt.bin> <glyph-map.txt> <output.bdf> [--json <path|->]");
+        writer.WriteLine("  lsptool menu-export <original-rgo-pr.bin> <new-image-dir> [--json <path|->]");
+        writer.WriteLine("  lsptool menu-build <original-rgo-pr.bin> <image-dir> <new-pr.bin> [--quantize] [--json <path|->]");
+        writer.WriteLine("  lsptool menu-union-export <original-rgo-union.cpk> <new-image-dir> [--json <path|->]");
+        writer.WriteLine("  lsptool menu-union-build <original-rgo-union.cpk> <image-dir> <new-union.cpk> [--quantize] [--json <path|->]");
         writer.WriteLine("  lsptool font-import-bdf <lt.bin> <glyph-map.txt> <font.bdf> <output-lt.bin> [--mode russian|cyrillic|all] [--baseline N] [--intensity 1..3] [--x-shift N] [--y-shift N] [--replace-existing] [--allow-clipping] [--allow-missing] [--preview <atlas.png>] [--json <path|->]");
         writer.WriteLine("  lsptool workspace-export <sc.cpk> <glyph-map.txt> <dir> [--game rgo|nim] [--ids 0,1] [--json <path|->]");
+        writer.WriteLine("  lsptool workspace-names-export <workspace-dir> <source-sc.cpk> <names.json> [--json <path|->]");
+        writer.WriteLine("  lsptool workspace-names-apply <workspace-dir> <source-sc.cpk> <names.json> <new-workspace-dir> [--json <path|->]");
         writer.WriteLine("  lsptool workspace-validate <workspace-dir> <source-sc.cpk> [--json <path|->]");
         writer.WriteLine("  lsptool workspace-build <workspace-dir> <source-sc.cpk> <output-sc.cpk> [--plan <path>] [--json <path|->]");
         writer.WriteLine("  lsptool apply-eboot-plan <EBOOT.DEC.BIN> <plan.json> <output.bin> [--json <path|->]");

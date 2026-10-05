@@ -206,6 +206,7 @@ def build_release(root: Path, rids: list[str], dotnet: str, *, compile_only: boo
             ("repository-audit", ["validation/audit_repository.py"]),
             ("baseline", ["validation/validate_customer_baseline.py"]),
             ("font-oracle", ["validation/validate_font_fixtures.py"]),
+            ("image-oracle", ["validation/validate_image_fixtures.py"]),
             ("iso-oracle", ["validation/validate_iso_fixture.py"]),
             ("iso-rebuild-oracle", ["validation/validate_iso_rebuild.py"]),
             ("release-regressions", ["-m", "unittest", "discover", "-s", "validation", "-p", "test_release_pipeline.py", "-v"]),
