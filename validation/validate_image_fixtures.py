@@ -22,6 +22,15 @@ def b64(data):
     return base64.b64encode(data).decode('ascii')
 
 
+def portable_gzip(data):
+    """Normalize the optional gzip OS marker across Python and operating systems."""
+    encoded = bytearray(gzip.compress(data, compresslevel=9, mtime=0))
+    # Python versions differ in whether mtime=0 inherits zlib's OS marker.
+    # 255 is the RFC 1952 'unknown' value; it does not change DEFLATE or CRC.
+    encoded[9] = 255
+    return bytes(encoded)
+
+
 def chunk(name, data):
     """Build a PNG chunk using the platform-independent library CRC."""
     return struct.pack('>I', len(data)) + name + data + struct.pack('>I', binascii.crc32(name + data))
@@ -118,7 +127,7 @@ def make_vectors():
                 for frame in range(2):
                     struct.pack_into('<I', block, 4+frame*4, cursor)
                     part = packed[frame*len(packed)//2:(frame+1)*len(packed)//2]
-                    encoded = gzip.compress(part, compresslevel=9, mtime=0)
+                    encoded = portable_gzip(part)
                     struct.pack_into('<I', block, cursor, len(part))
                     block[cursor+4:cursor+16] = bytes(12)
                     block[cursor+16:cursor+16+len(encoded)] = encoded
@@ -148,7 +157,7 @@ def make_vectors():
     small_layout = {'id': 0, 'pixelOffset': 0, 'capacity': 128, 'paletteOffset': 128, 'colorCount': 16, 'width': 32, 'height': 8, 'compressed': True}
     small = bytearray(128)
     packed = bytes(128)
-    encoded = gzip.compress(packed, compresslevel=9, mtime=0)
+    encoded = portable_gzip(packed)
     end = (32+len(encoded)+15)//16*16
     struct.pack_into('<III', small, 0, 1, 16, end)
     struct.pack_into('<I', small, 16, len(packed))

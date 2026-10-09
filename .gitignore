@@ -29,6 +29,10 @@ validation/iso-fixture-validation.json
 # Python bytecode
 **/__pycache__/
 *.py[cod]
+*.log
+*.tmp
+*.bak
+*.swp
 validation/iso-rebuild-fixture-validation.json
 validation/*-manual-*.log
 
